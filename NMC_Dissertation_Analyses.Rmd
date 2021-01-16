@@ -1,0 +1,739 @@
+---
+title: "Chapters 2 and 3 of dissertation"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+author: "Peter M. Yaworsky"
+date: "12/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+Welcome to Peter's dissertation analysis. Here, I walk through the analyses used in my dissertation research. The document primarily exists to help me organize my analyses in a way conducive with troubleshooting problems with my colleagues. Let's begin by loading the packages.
+
+It is important to note that I do 2 types of analyses here. The first one tests hypotheses derived from the ideal free distribution model about how population expansions and contractions during the Formative period manifested in land-use patterns. The second tests hypotheses about risk sensitivity manifesting in the form of storage feature placement and numbers in the central section of Nine Mile Canyon.
+
+```{r cars}
+library(MASS)
+library(Bchron)
+library(mgcv)
+library(plotfunctions)
+library(rcarbon)
+library(sf)
+library(raster)
+library(rcarbon)
+```
+
+
+## Hypotheses!
+There is an interesting trend with sites across the West Tavaputs Plateau, particularly in Nine Mile Canyon (NMC) and Range Creek (RC). These are where the majority of inventories have taken place and also where the majority of radiocarbon dated material derive, but data also exist in Desolation Canyon. The trend is that the highest density of sites are clustered. I (and others) believe this is likely a result of environmental variables like GDD, which influence maize growth. With the Fremont being maize farmers, we would expect them to be sensitive to the environmental requirements of maize. Higher GDD means a longer growing season. Interestingly, we see the densest concentrations of sites on the West Tavaputs being closer to the cusp of GDDs required to grow corn (2700 GDD). This would suggest another important variable. I (and others) believe that this likely has to do with creek water access, where farmers living farther upstream have first access to creek water and could potentially monopolize it in times of severe drought. That or the relationship between GDD and temperature means that soil moisture loss as you move down canyon negatively impacts maize productivity. 
+
+This would imply that alone, GDD is not a good habitat suitability proxy (sensu IFD). In such case, I devise 3 measures of habitat suitability and test whether Fremont distributed themselves acorss the West Tavaputs Plateau as predicted by IFD, wherein they occupy the most suitable habitats first and enter lower ranked habitats as population density increases.
+
+Proxy for population density: 
+- Sum Probability of Radiocarbon Dates (SPD)
+
+Habitat suitability Proxies:
+- GDE which is scale(gdd)*scale(elevation), which should capture being higher upstream.
+- F1 which is a GDD transform from Ramankutty et al 2002 which incoporates a soil moisture index.
+- GDD by itself
+- Probability of Cultivation as determined from data taken from Ramankutty et al 2002 and fitted with a new line.
+
+The standard model setup is:
+
+mean habitat suitability of occupied habitats ~ average precipitation + SPD
+
+I predict that mean habitat suitability will decline as SPD increases.
+
+I predict that mean habitat suitability will decline as average precipitation increases. 
+
+I predict that risk averse behaviors during high precip times will result in an increasing number of storage features as average precipitation increases, while controling for population using the SPD.
+
+## Data
+
+To test this I use:
+
+- 158 radiocarbon dates from across the West Tavaputs plateau. Sites older than 2ky BP are not used.
+
+```{r datas,echo=F}
+alldata<-read.csv("./ALL_NMC_dates.csv")
+#dates<-alldata[is.na(alldata$type)==F,]
+#
+plot(BchronCalibrate(ages=c(sort(alldata$uncal_age,decreasing=F)),
+                       ageSds=c(alldata$uncal_err),
+                       positions=seq(0,15700,100),
+                       calCurves=rep('intcal20',nrow(alldata))),withPositions=T)
+```
+
+- A paleoclimatic reconstruction of the West Tavaputs Plateau
+
+```{r paleoclim,echo=F}
+ts.df<-read.csv("./timedata.csv")
+ts.df<-ts.df[1:1584,]
+ts.df[is.na(ts.df)] <- 0
+mean<-ts.df
+mean1<-mean[500:1500,]
+library(RColorBrewer)
+ma <- function(arr, n=100){
+  res = arr
+  for(i in n:length(arr)){
+    res[i] = mean(arr[(i-n):i])
+  }
+  res
+}
+
+RB<-brewer.pal(n = 11, name = 'RdBu')
+pal = colorRampPalette(RB)
+mean1$order = findInterval(mean1$Reg_mean, sort(mean1$Reg_mean))
+
+plot(Reg_mean~yearBP,data=mean1, type="p", pch=19, col=pal(nrow(mean1))[mean1$order], lwd=1, ylab="Mean Precip (mm)", xlab="",cex.lab=1.3)
+
+ma7yr<-ma(mean$Reg_mean, n=30) #7 year running average following Benson et al. 2013
+
+lines(ma7yr~mean$yearBP, col="black", lwd=2)
+abline(h=mean(mean1$Reg_mean))
+```
+
+Note: The averaging window size in years for the trend line is specified as `n` in the `ma` function
+
+- Ramankutty GDD and Probability of cultivation data
+
+This is the model that we will use later for probability of cultivation as a proxy of habitat suitability.
+
+```{r ramman}
+raman<-read.csv("./ramankutty_probscultivation.csv")
+raman.mod<-gam(Probs_Cul~s(gdd,k=11),data=raman,family="binomial")
+newdata<-predict(raman.mod,
+                 newdata=data.frame(gdd=seq(0,9000,1)
+                  )
+                  ,
+                  se.fit=T)
+ 
+plot(raman)
+ ilink <- family(raman.mod)$linkinv
+ lines(seq(0,9000,1),ilink(newdata$fit))
+ lines(seq(0,9000,1),ilink(newdata$fit+(2*newdata$se.fit)))
+ lines(seq(0,9000,1),ilink(newdata$fit-(2*newdata$se.fit)))
+ 
+```
+
+- MI, NPP, and GDD
+
+
+```{r moredata,verbose=F}
+allsp<-SpatialPointsDataFrame(coords=cbind(alldata$me.x,alldata$mn.x),proj4string=CRS("+init=epsg:26912"),data=alldata)
+allsp<-spTransform(allsp,CRSobj=CRS("+init=epsg:4326"))
+#just the state data for cropping
+library(rgdal)
+setwd("D:/Desktop/UTAH_Paleo")
+states <- readOGR("./NATIONAL_ATLAS/statesp010g", layer='statesp010g')
+states <- states[states$NAME %in% c("Utah"),]
+#then we load our rasters
+setwd("D:/Desktop/Grants/CPAA_GSENM/GSENM/Data/GIS/Rasters/Raw")
+mi<-raster("./Rasters/MoistureIndex1.tif")
+#mi<-projectRaster(from=mi, crs=CRS("+init=epsg:26912"), method="bilinear")
+
+#npp
+npp<-raster("./Rasters/MOD17A3_Science_NPP_mean_00_15.tif")
+npp<-crop(npp,states)
+#npp<-projectRaster(from=npp, crs=CRS("+init=epsg:26912"), method="bilinear")
+
+#gdd
+gdd<-raster("../DEM_ext/epsg_4326/complete/GDD_corngrowing_dds_2005/YNWL_50n.asc")
+
+#extract the values to the df
+alldata$mi<-extract(mi,allsp)
+alldata$npp<-extract(npp,allsp)
+alldata$gdd<-extract(gdd,allsp)
+
+alldata$f1<-(1/(1+exp(0.00052*(1334-alldata$gdd))))*alldata$mi
+npp[npp==65535]<-NA
+
+alldata$gde<-scale(alldata$gdd)*scale(alldata$elev)
+alldata$probscul<-predict(raman.mod,newdata=data.frame(gdd=alldata$gdd))
+ilink <- family(raman.mod)$linkinv
+alldata$probscul<-ilink(alldata$probscul)
+```
+
+- SPD using bins to account for dates at multiple sites and a 100 year averaging window for smoothing.
+
+```{r caldates,message=F}
+caldates<-calibrate(x=alldata$uncal_age,errors=alldata$uncal_err,calCurves='intcal20',verbose=F)
+
+#with bins
+DK.bins = binPrep(sites=alldata$site,ages=alldata$uncal_age,h=100)
+calspd=spd(caldates,bins=DK.bins,timeRange = c(2000,400),runm=100,verbose=F)
+plot(calspd)
+plot(calspd,runm=50,type="simple",col="darkorange",lwd=1.5,lty=2,add=T)
+```
+
+## Analysis
+
+To begin, I create a dataframe with the mean habitat suitability of all occupied habitats at each time step (year) and weight it by multiplying by the probability density of the calibrated radiocarbon date. 
+
+```{r analysis,message=F,verbose=F}
+df<-data.frame(yearBP=calspd$grid$calBP,
+               spd=calspd$grid$PrDens,
+               meanGDE=NA,
+               meanprecip=NA,
+               avgmeanprecip=NA)
+
+mean$avgprecip<-ma7yr
+df<-merge(df,mean[,c(2,6,12)],by="yearBP",all.x=T)
+
+meangde<-data.frame(yearBP=calspd$grid$calBP)
+for (i in 1:nrow(alldata)){
+  #meangde[,1+i]<-paste("gde",i,sep="")
+  dates<-calibrate(x=alldata$uncal_age[i],errors=alldata$uncal_err[i],calCurves='intcal20',verbose=F)
+  
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$gde[i]*dates$grids$"1"$PrDens) 
+  meangde<-merge(meangde,x,by="yearBP",all=T)
+  
+  #above i multiply the probability of the density function by gde as a weight of how likely that year is.
+}
+
+for (i in 401:2001){
+  test<-meangde[i,]
+  test<-t(test)
+  test<-test[-1,]
+  df$meanGDE[i-400]<-mean(na.omit(test))
+  df$medGDE[i-400]<-median(test,na.rm=T)
+}
+
+df<-df[,-c(4,5)]
+
+###########################################################################################
+####################
+
+###############################################################################
+###############################################################################
+#####elev
+#######################################################################
+df$meanelev<-NA
+df$medelev<-NA
+#selecting out only the stor sites
+#stors<-alldata[is.na(alldata$type)==F,]
+
+#now to make a table to make counts
+elev<-data.frame(yearBP=calspd$grid$calBP)
+for (i in 1:nrow(alldata)){
+  #meangde[,1+i]<-paste("gde",i,sep="")
+  dates<-calibrate(x=alldata$uncal_age[i],errors=alldata$uncal_err[i],calCurves='intcal20',verbose=F)
+  
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$elevation[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  elev<-merge(elev,x,by="yearBP",all=T)
+  
+}
+
+#putting this into the main df, df
+for (i in 401:2001){
+  test<-elev[i,]
+  test<-t(test)
+  test<-test[-1,]
+  df$meanelev[i-400]<-mean(na.omit(test))
+  df$medelev[i-400]<-median(na.omit(test))
+  
+}
+
+########################################################################
+########GDD########
+###########################################
+###########################################
+df$meangdd<-NA
+df$medgdd<-NA
+#selecting out only the stor sites
+#stors<-alldata[is.na(alldata$type)==F,]
+
+#now to make a table to make counts
+gdd<-data.frame(yearBP=calspd$grid$calBP)
+for (i in 1:nrow(alldata)){
+  #meangde[,1+i]<-paste("gde",i,sep="")
+  dates<-calibrate(x=alldata$uncal_age[i],errors=alldata$uncal_err[i],calCurves='intcal20',verbose=F)
+  
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$gdd[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  gdd<-merge(gdd,x,by="yearBP",all=T)
+  
+}
+
+#putting this into the main df, df
+for (i in 401:2001){
+  test<-gdd[i,]
+  test<-t(test)
+  test<-test[-1,]
+  df$meangdd[i-400]<-mean(na.omit(test))
+  df$medgdd[i-400]<-median(na.omit(test))
+  
+}
+
+##########################
+########Probs Cul########
+###########################################
+###########################################
+df$meanprobscul<-NA
+df$medprobscul<-NA
+#selecting out only the stor sites
+#stors<-alldata[is.na(alldata$type)==F,]
+
+#now to make a table to make counts
+probscul<-data.frame(yearBP=calspd$grid$calBP)
+for (i in 1:nrow(alldata)){
+  #meangde[,1+i]<-paste("gde",i,sep="")
+  dates<-calibrate(x=alldata$uncal_age[i],errors=alldata$uncal_err[i],calCurves='intcal20',verbose=F)
+  
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$probscul[i]) #1 times the prob density in an attempt to weight that number of storage features
+  probscul<-merge(probscul,x,by="yearBP",all=T)
+  
+}
+
+#putting this into the main df, df
+for (i in 401:2001){
+  test<-probscul[i,]
+  test<-t(test)
+  test<-test[-1,]
+  df$meanprobscul[i-400]<-mean(na.omit(test))
+  df$medprobscul[i-400]<-median(na.omit(test))
+  
+}
+```
+
+I try two models for each suitability proxy, a standard GAM and then an autoregressive GAM in attempt to control for temporal autocorrelation within the data.
+
+*Note: Dataframe is cropped to only include data from 2kya-600ya.
+
+Questions:
+- Am I plotting these correctly? Some of the y-axes look weird.
+- I'm using a gaussian family and I'm not sure if that is the most appropriate.
+- Which models need the AR model and which don't?
+- Which models should I drop (if any)?
+
+```{r modeltime, message=F}
+
+df<-df[c(201:1601),] #2000-600BP
+par(pty="s")
+#par(mfrow=c(1,3))
+
+
+
+##################
+###seems like something weird is going on which might be attributable to periods of settlement and abandonment being different processes
+
+df$aors<-NA
+df$aors[279:nrow(df)]<-1
+df$aors[1:278]<-0
+
+par(mfrow=c(1,3))
+plot(meanGDE~spd,df,col=df$aors+1,pch=19)
+plot(meanprobscul~spd,df,col=df$aors+1,pch=19)
+plot(spd~yearBP,df,col=df$aors+1,pch=19)
+
+
+
+#gam
+mod1<-gam(meanGDE~s(avgprecip)+s(spd,k=4)+s(aors,bs="re")+s(aors,spd,bs="re"),data=df)
+summary(mod1)
+acf(resid(mod1),lag.max=1000)
+
+
+plot(meanGDE~spd,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(0,.3,.001),preds$fit,col=2)
+
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=0),
+               se.fit=T)
+lines(seq(0,.3,.001),preds$fit,col=1)
+
+plot(meanGDE~avgprecip,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(100,450,1),preds$fit,col=2)
+
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=0
+                                      ),
+               se.fit=T)
+lines(seq(100,450,1),preds$fit,col=1)
+
+
+#gamm
+mod1<-gamm(meanGDE~s(avgprecip)+s(spd)+s(aors,bs="re"),data=df,correlation=corAR1())
+summary(mod1$gam)
+
+#hist(resid(mod1$gam))
+acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+
+plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=2,seWithMean=TRUE,ylab="Mean GDE")
+plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,ylab="Mean GDE")
+
+
+
+####probs cul gam
+mod1<-gam(meanprobscul~s(spd,k=3)+s(avgprecip)+s(aors,spd,bs="re")+s(aors,bs="re"),data=df,family="quasibinomial")
+summary(mod1)
+#hist(resid(mod1),main="ProbCul~SPD+AvgPrecip")
+acf(resid(mod1),lag.max=1000)
+
+ilink <- family(mod1)$linkinv
+plot(meanprobscul~spd,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(0,.3,.001),ilink(preds$fit),col=2)
+
+
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=0),
+               se.fit=T)
+lines(seq(0,.3,.001),ilink(preds$fit),col=1)
+
+
+plot(meanprobscul~avgprecip,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(100,450,1),ilink(preds$fit),col=2)
+
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=0
+                                      ),
+               se.fit=T)
+lines(seq(100,450,1),ilink(preds$fit),col=1)
+
+
+
+##gammmm
+mod1<-gamm(meanprobscul~s(spd)+s(avgprecip)+s(aors,spd,bs="re")+s(aors,bs="re"),data=df,correlation=corAR1())
+summary(mod1$gam)
+acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+
+#hist(resid(mod1$gam),main="ProbCul~SPD+AvgPrecip")
+
+
+plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Probs Cul",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Probs Cul",xlab="Avg Precip",shift= ilink(coef(mod1$gam)[1]))
+```
+
+
+## Results
+
+People occupy lower ranked habitats as population increases. This is shown by both our habitat suitability proxies, GDE and probs of cultivation. The trend is strong with GDE, which makes sense if our hypothesis about being farther upstream and thus a higher elevation is true.
+
+The number of storage features is attributable to spd/population, with more storage features being built when there are more people on the landscape. 
+
+There does seem to be some discrepancy between whether the spd is associated with a period of population expansion or contraction. Abandonment of settled locations appears to occur at a slower rate than settlement. This may be a result of habitat improvement/niche construction inflating habitat suitability in a way not captured by our suitability proxies.
+
+There is likely other variables at play not included in this model that could explain residual deviation, such as prehistorical events, climatic events not captured in our precipitation measure, technological developments, and regional developments in human population and subsistence transitions.
+
+Residual deviation might also be explained by uncertainties within the radiocarbon distributions. Many of the radiocarbon distributions are bimodal as a result of the calibration curve. This may explain some of the patterning in our model residuals. 
+
+Other variables that we could include:
+- Proportion of diet attributed to maize determined using stable isotopes from human remains
+- 
+
+There does seem to be some effect of precipitation on populations, which makes sense, but for the West Tavaputs, precipitation does not seem to be as important. This is likely a result of the permanent water sources near all the sites used in this analysis. Rain fed agriculture may not have been as important as a result and people were likely more reliant on the avaialbility of water within the permanent creek systems for irrigating fields. The West Tavaputs environment makes for some interesting challenges in regards to water control. Rainfall during the growing season is unpredictable and often torrential. The unpredictability and intensity of these rainstorms makes farming in high drainage areas, like canyon bottoms, potentially dangerous and destructive. As such, irrigated agriculture within the canyons on the West Tavaputs was likely the best method for farming.
+
+
+# Storage Analyses
+
+Now to test ideas about storage. I think I should use just my own Nine Mile data so this should be the masterdata_w_spatial.csv. We will need to create the dataframe again with mean #stor, VS, and elevation above FP.
+
+These are just the Nine Mile Canyon data I collected. The reason we are using these data instead of the full dataset is that that these data have high accuracy UTM data, which is necessary for determining viewshed and elevation above the floodplain. Additionally, the raster created for determining elevation above the flood plain only currently exists for Nine Mile Canyon.
+
+We will still be using the SPD data for the entire Tavaputs.
+
+First, lets load just this data. 
+
+```{r cryingsounds}
+setwd("D:/Desktop/Dissertation")
+masterdata<-read.csv("./masterdata_w_spatial.csv")
+#making sure UTMs are all in one place (corrected and correct)
+##easting
+for (i in 1:nrow(masterdata)){
+  row<-i
+  if (is.na(masterdata[i,9])==FALSE){
+    masterdata[i,9]<-masterdata[i,9]}
+  else {
+    masterdata[i,9]<-masterdata[i,12]
+  }
+}
+
+##northing
+for (i in 1:nrow(masterdata)){
+  row<-i
+  if (is.na(masterdata[i,10])==FALSE){
+    masterdata[i,10]<-masterdata[i,10]}
+  else {
+    masterdata[i,10]<-masterdata[i,13]
+  }
+}
+
+#removing all those without UTM data
+masterdata<-masterdata[complete.cases(masterdata$mE_corrected), ]
+#just the columns we are interested in
+data<-masterdata[!is.na(masterdata$uncal_age),]
+#dumping the modern date
+data<-data[-22,]
+dates<-data[,c(2,3,4,7,8,13,14,34,36,37,89,90,91,92,93,94,95,96,97)]
+stors<-na.omit(dates)
+head(stors)
+```
+
+## Data Creation
+Creating the dataframe we will use for analysis. Here, I am using:
+
+- Mean GDE of occupied habitats on the West Tavaputs Plateau
+- Average 30-year regional precipitiation
+- The number of storage features occupied at each year
+- The mean viewshed of the floodplain of in use storage features
+- The mean elevation above the floodplain
+
+```{r storageonly, eval=F}
+###number of stors
+notstors<-alldata[is.na(alldata$type)==T,]
+caldates1<-calibrate(x=notstors$uncal_age,errors=notstors$uncal_err,calCurves='intcal20',verbose=F)
+DK.bins1 = binPrep(sites=notstors$site,ages=notstors$uncal_age,h=100)
+calspd1=spd(caldates1,bins=DK.bins1,timeRange = c(2000,400),runm=100,verbose=F)
+
+#df with yearBP,spd.y (stors excluded),mean precip, mean numstor, mean vs, mean elevation above fp 
+df<-data.frame(yearBP=calspd1$grid$calBP,
+               spd=calspd1$grid$PrDens,
+               meanGDE=df$meanGDE[401:2001]
+               )
+
+mean$avgprecip<-ma7yr
+df<-merge(df,mean[,c(2,6,12)],by="yearBP",all.x=T)
+
+
+#################################
+#counting the stors in use in NMC
+df$numstor<-NA
+#selecting out only the stor sites
+
+stors<-stors
+
+#now to make a table to make counts
+stornum<-data.frame(yearBP=calspd$grid$calBP)
+for (i in 1:nrow(stors)){
+ 
+  dates<-calibrate(x=stors$uncal_age[i],errors=stors$uncal_err[i],calCurves='intcal20',verbose=F)
+  
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=1*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  stornum<-merge(stornum,x,by="yearBP",all=T)
+  
+}
+
+#putting this into the main df, df
+for (i in 401:2001){
+  test<-stornum[i,]
+  test<-t(test)
+  test<-test[-1,]
+  df$numstor[i-400]<-sum(na.omit(test))
+  
+}
+
+###okay, now we have num stor
+#now for VS
+VS<-data.frame(yearBP=calspd$grid$calBP)
+for (i in 1:nrow(stors)){
+ 
+  dates<-calibrate(x=stors$uncal_age[i],errors=stors$uncal_err[i],calCurves='intcal20',verbose=F)
+  
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=stors$VS_fp[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  VS<-merge(VS,x,by="yearBP",all=T)
+  
+}
+
+#putting this into the main df, df
+for (i in 401:2001){
+  test<-VS[i,]
+  test<-t(test)
+  test<-test[-1,]
+  df$VS[i-400]<-mean(na.omit(test))
+  
+}
+
+
+#now for elevation above the floodplain
+elevfp<-data.frame(yearBP=calspd$grid$calBP)
+for (i in 1:nrow(stors)){
+ 
+  dates<-calibrate(x=stors$uncal_age[i],errors=stors$uncal_err[i],calCurves='intcal20',verbose=F)
+  
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=stors$elvbvFP[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  elevfp<-merge(elevfp,x,by="yearBP",all=T)
+  
+}
+
+#putting this into the main df, df
+for (i in 401:2001){
+  test<-elevfp[i,]
+  test<-t(test)
+  test<-test[-1,]
+  df$elevfp[i-400]<-mean(na.omit(test))
+  
+}
+```
+
+## Analyses 2
+Next we will analyze these data. We use an autoregressive generalized additive mixed model (GAMM).
+
+First, we look at the number of storage features in use relative to precipitation, population and mean suitability of occupied habitats.
+
+Next we look at the mean viewshed of occupied of in use storage features relative to precipitation, population and mean suitability of occupied habitats.
+
+Last we look at mean elevation above the floodplain of in use storage features.
+
+```{r storresults}
+###############################
+#Number of stors
+mod1<-gam(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
+summary(mod1)
+#hist(residuals(mod1))
+acf(resid(mod1),lag.max=1000)
+
+#gamm
+mod1<-gamm(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df,correlation=corAR1())
+summary(mod1$gam)
+#hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
+acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+
+plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE",shift= ilink(coef(mod1$gam)[1]))
+
+########################################################################
+#################
+#Viewshed
+mod1<-gam(VS~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
+summary(mod1)
+#hist(residuals(mod1))
+acf(resid(mod1),lag.max=1000)
+
+#gamm
+mod1<-gamm(VS~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df,correlation=corAR1())
+summary(mod1$gam)
+#hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
+acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=3,shade=T,residuals=T,ylab="VS",xlab="GDE",shift= ilink(coef(mod1$gam)[1]))
+
+########################################################################
+#################
+#ElevFP
+mod1<-gam(elevfp~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
+summary(mod1)
+#hist(residuals(mod1))
+acf(resid(mod1),lag.max=1000)
+
+#gamm
+mod1<-gamm(elevfp~s(avgprecip)+s(spd,k=3)+s(meanGDE),data=df,correlation=corAR1())
+summary(mod1$gam)
+#hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
+acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Elev Above FP",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Elev Above FP",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Elev",xlab="GDE",shift= ilink(coef(mod1$gam)[1]))
+```
+
+## Results!
+### Number of storage ~ precip, population, and habitat suitability
+
+### VS ~ precip, population, and habitat suitability
+### Elevation ~ precip, population, and habitat suitability
+
+
+```{r otherchunks,eval=F,include=F}
+#basic model
+mod1<-gam(meanGDE~s(avgprecip,k=2)+s(spd,k=2),data=df)
+summary(mod1)
+ilink <- family(mod1)$linkinv
+plot(mod1,select=1,shade=T,residuals=T,ylab="Mean GDE",xlab="Average Precip",shift=ilink(coef(mod1)[1]))
+plot(mod1,select=2,shade=T,residuals=T,ylab="Mean GDE",xlab="SPD",shift=ilink(coef(mod1)[1]))
+acf(resid(mod1),lag.max=1000)
+
+
+#gamm
+mod1<-gamm(meanGDE~s(avgprecip)+s(spd),data=df,correlation=corAR1())
+summary(mod1$gam)
+
+plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Mean GDE",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Mean GDE",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+
+hist(resid(mod1$gam))
+
+###GDD and Elev instaed of GDE
+#basic model
+mod1<-gam(spd~s(meangdd,k=2)+s(meanelev,k=5)+s(avgprecip),data=df,family="binomial")
+summary(mod1)
+ilink <- family(mod1)$linkinv
+plot(mod1,select=1,shade=T,residuals=T,ylab="SPD",xlab="Mean GDD",shift=ilink(coef(mod1)[1]))
+plot(mod1,select=2,shade=T,residuals=T,ylab="SPD",xlab="Mean Elev",shift=ilink(coef(mod1)[1]))
+#plot(mod1,select=3,shade=T,residuals=T,ylab="SPD",xlab="Average Precip")
+acf(resid(mod1),lag.max=1000)
+
+
+
+
+#gamm
+mod1<-gamm(spd~s(meangdd)+s(meanelev)+s(avgprecip),data=df,correlation=corAR1())
+summary(mod1$gam)
+
+plot(mod1$gam,select=1,shade=T,residuals=T,ylab="SPD",xlab="Mean GDD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,residuals=T,ylab="SPD",xlab="Mean Elev",shift= ilink(coef(mod1$gam)[1]))
+#plot(mod1,select=3,shade=T,residuals=T,ylab="SPD",xlab="Average Precip")
+acf(resid(mod1$lme),lag.max=1000)
+
+hist(resid(mod1$gam),main="SPD~GDD+Elev")
+
+############prob cul
+###
+#basic model
+mod1<-gam(meanprobscul~s(spd,k=3)+s(avgprecip,k=4),data=df,family="quasibinomial")
+summary(mod1)
+ilink <- family(mod1)$linkinv
+plot(mod1,select=1,shade=T,residuals=T,ylab="mean probs cul",xlab="SPD",shift=ilink(coef(mod1)[1]))
+plot(mod1,select=2,shade=T,residuals=T,ylab="probs cul",xlab="avg precip",shift=ilink(coef(mod1)[1]))
+acf(resid(mod1),lag.max=1000)
+
+
+
+#gamm
+mod1<-gamm(meanprobscul~s(spd)+s(avgprecip),data=df,correlation=corAR1())
+summary(mod1$gam)
+
+plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Probs Cul",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Probs Cul",xlab="Avg Precip",shift= ilink(coef(mod1$gam)[1]))
+acf(resid(mod1$lme),lag.max=1000)
+
+hist(resid(mod1$gam),main="ProbCul~SPD+AvgPrecip")
+
+
+```
