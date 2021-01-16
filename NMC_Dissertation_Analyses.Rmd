@@ -29,6 +29,7 @@ library(rcarbon)
 library(sf)
 library(raster)
 library(rcarbon)
+setwd("D:/Desktop/Dissertation")
 ```
 
 
@@ -314,7 +315,7 @@ Questions:
 - Which models should I drop (if any)?
 
 ```{r modeltime, message=F}
-
+df2<-df
 df<-df[c(201:1601),] #2000-600BP
 par(pty="s")
 #par(mfrow=c(1,3))
@@ -521,14 +522,14 @@ DK.bins1 = binPrep(sites=notstors$site,ages=notstors$uncal_age,h=100)
 calspd1=spd(caldates1,bins=DK.bins1,timeRange = c(2000,400),runm=100,verbose=F)
 
 #df with yearBP,spd.y (stors excluded),mean precip, mean numstor, mean vs, mean elevation above fp 
+df1<-df
 df<-data.frame(yearBP=calspd1$grid$calBP,
                spd=calspd1$grid$PrDens,
-               meanGDE=df$meanGDE[401:2001]
+               meanGDE=NA
                )
 
-mean$avgprecip<-ma7yr
 df<-merge(df,mean[,c(2,6,12)],by="yearBP",all.x=T)
-
+df$meanGDE<-df2$meanGDE
 
 #################################
 #counting the stors in use in NMC
@@ -616,6 +617,10 @@ mod1<-gam(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
 summary(mod1)
 #hist(residuals(mod1))
 acf(resid(mod1),lag.max=1000)
+plot(mod1,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1)[1]))
+plot(mod1,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1)[1]))
+plot(mod1,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE",shift= ilink(coef(mod1)[1]))
+
 
 #gamm
 mod1<-gamm(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df,correlation=corAR1())
