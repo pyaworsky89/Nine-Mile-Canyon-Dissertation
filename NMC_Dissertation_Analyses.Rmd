@@ -623,7 +623,7 @@ plot(mod1,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE",shift= ilink(c
 
 
 #gamm
-mod1<-gamm(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df,correlation=corAR1())
+mod1<-gamm(numstor~s(avgprecip)+s(spd)+s(meanGDE),data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
@@ -668,10 +668,25 @@ plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Elev",xlab="GDE",shift= ilink(c
 ```
 
 ## Results!
-### Number of storage ~ precip, population, and habitat suitability
 
-### VS ~ precip, population, and habitat suitability
-### Elevation ~ precip, population, and habitat suitability
+I mean, maybe it's during periods when agricultural productivity is high that populations are expanding and occupying into lower ranked habitats. During these good periods, people are building more storage features as a way of dividing their crop into more dice rolls and placing these storage features in more inaccessible locations. If so, this would be risk adverse behavior!
+
+Alternatively, movement into lower ranked habitats could also result in an increase risk of loss due to theft (possibly as a result of inequality stemming from despotic exclusion from habitats) in the environment and people reacting by upping their investment in storage by building more and making them more difficult to access.
+
+### Number of storage
+
+More storage when people occupy lower ranked habitats independent of population. What would the occupation of lower ranked habitats mean? 1. Higher population densities (which are accounted for in the model already), 2. In IFD everyone is doing the same, but in IDD some habitats may retain a higher suitability as a function of despotic actions. Perhaps this is a result of IDD processes?
+
+### VS and Elevation
+
+VS and elevation have a strong positive correlation. As you increase in elevation, more of the landscape becomes visible. So, it is likely that one or the other is responsible for the trend in both.
+
+One explanation is that when lower ranked habitats were occupied Fremont were both increasing the difficulty to access and the viewshed of a storage feature. This would imply monitoring, but monitoring also requires vigilance. 
+
+Another explanation is that they were increasing difficulty of access or VS and the increase in the other is just a by product. I think that increasing the difficulty of access is likely the answer here, considering the cryptic nature of some storage features. 
+
+## NMC Storage Strategy
+I kind of think its just a response to increasing populations and potential thieving and people are reacting by making their storage features harder to access by placing them higher off the floodplain and perhaps dividing their crops among more storage features.
 
 
 ```{r otherchunks,eval=F,include=F}
