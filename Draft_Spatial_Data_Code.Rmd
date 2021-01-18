@@ -1,0 +1,804 @@
+---
+title: "Dissertation Analyses"
+author: "Peter M. Yaworsky"
+date: "October 11, 2019"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This document provides the code and walkthrough of all analyses for Yaworsky's dissertation at University of Utah. Analyses are all run through R, but GRASS is also required.
+
+Task in this document:
+- Preparing data in the master datasheet. This involves reading in the data, setting up the UTM's correctly, transforming it into a shapefile, and extracting relevant data into the attributes tables for future analyses.
+- Generating the spatial datasets that will be used and extracted to the attributes tables.
+- Generating viewsheds and getting a count of visible cells (total, in canyon, in canyon bottom).
+- Generating a random sample (complete random, outside of flood plain, and within the storage universe [storage~elev_abvFP+aspect
+- A comparison of the storage, resi, and random distributions viewshed and cost-distance from flood plain
+- Final analysis using the paleoclim data
+
+```{r cars}
+#set WD
+setwd("D:/Desktop/Dissertation/GIS")
+#Load libraries
+library(rgrass7)
+library(raster)
+system("grass74 --config path")
+library(raster)
+library(sp)
+library(maptools)
+library(rgdal)
+library(dismo)
+library(rgeos)
+library(gstat)
+library(missForest)
+library(maptools)
+library(MASS)
+load("D:/Desktop/Dissertation/GIS/Analyses_data.RData")
+```
+
+# Preparing Data
+
+##Read in Master Data sheet
+
+```{r loaddata,eval=F}
+#loading in the master data
+masterdata<-read.csv("../Field Data/Master_DataSheet.csv")
+#making sure UTMs are all in one place (corrected and correct)
+##easting
+for (i in 1:nrow(masterdata)){
+  row<-i
+  if (is.na(masterdata[i,9])==FALSE){
+    masterdata[i,9]<-masterdata[i,9]}
+  else {
+    masterdata[i,9]<-masterdata[i,12]
+  }
+}
+
+##northing
+for (i in 1:nrow(masterdata)){
+  row<-i
+  if (is.na(masterdata[i,10])==FALSE){
+    masterdata[i,10]<-masterdata[i,10]}
+  else {
+    masterdata[i,10]<-masterdata[i,13]
+  }
+}
+
+#removing all those without UTM data
+masterdata<-masterdata[complete.cases(masterdata$mE_corrected), ]
+```
+
+###Convert it to a shapefile with an attributes table
+
+```{r spatialcoen,eval=F}
+masterdata_sp<-SpatialPointsDataFrame(coords=data.frame(masterdata$mE_corrected,masterdata$mN_correct),proj4string=CRS("+init=epsg:26912"),data=masterdata)
+
+plot(masterdata_sp)
+
+##writing to shapefile
+
+```
+
+##Random Points
+
+```{r spatialcon,eval=F}
+#Project Boundary (we will generate random points within this)
+NMC_B<-readShapePoly('./ArcMap/Project_Buffer1')
+proj4string(NMC_B)<-CRS("+init=epsg:26912")
+
+#loading in the DEM raster (explained below) to generate the absence data.
+DEM<-raster("./DEM/NMCDEM/NMCDEM.tif")
+
+#generating random points
+abs<-randomPoints(mask=DEM,n=20000,p=masterdata_sp,ext=NMC_B)
+abs<-data.frame(abs)
+abs<-SpatialPointsDataFrame(coords=abs,proj4string=NMC_B@proj4string,data=abs)
+abs<-abs[NMC_B,]
+
+plot(DEM)
+plot(NMC_B,add=T)
+plot(abs,add=T)
+
+##writing as a shapefile
+writeOGR(abs,dsn='./randompoints',layer=,'randompoints',driver='ESRI Shapefile')
+```
+
+
+#Creating background raster data!
+
+##Elevation Above Floodplain
+
+```{r elevabvfp,eval=F}
+###Canyon bottom ID using flood prediction https://gis.utah.gov/data/water/ = Flood areas
+floodplains<-readShapePoly('./junk1/Floodplains_shp/Floodplains/Floodplains')
+#pull out the one for NMC (note, this floodplain only encompasses my current project area and not the entirity of Nine Mile canyon)
+floodplains<-floodplains[194,]
+proj4string(floodplains)<-CRS("+init=epsg:26912")
+                         
+#Now to generate random points and crop them to just within the polygon
+points<-randomPoints(mask=DEM,n=200000,ext=NMC_B)
+points<-data.frame(points)
+points<-SpatialPointsDataFrame(coords=points,proj4string=floodplains@proj4string,data=points)
+#cropping action
+points<-points[floodplains,]
+
+#extracting DEM elevations for the random points
+df<-raster::extract(x=DEM,y=points,methods="simple")
+df1<-data.frame(points@data)
+#this dataframe has mE, mN, and DEM elevation
+df1$elev<-df
+
+#Creating a raster of the mE
+mE<-matrix(coordinates(DEM)[,1],nrow=8000,ncol=12000,byrow=T)
+x <- raster(mE)
+names(x)<-"x"
+extent(x) <- extent(DEM)
+#creating a raster of the mN
+mN<-matrix(coordinates(DEM)[,2],nrow=8000,ncol=12000,byrow=T)
+y <- raster(mN)
+names(y)<-"y"
+extent(y) <- extent(DEM)
+rm(mE);rm(mN)
+#stacking them
+loc<-stack(x,y)
+
+
+#Random Forest because I am a balla
+model <- elev ~ x+y
+MF_RF<- randomForest(model, data=na.omit(df1), importance=T)
+RF_bby<-raster::predict(model=MF_RF, object=loc,progress="text")
+
+#seems to have worked well enough for the project area, but maybe not for the areas outside as well
+Elev_above<-DEM-RF_bby
+writeRaster(Elev_above,filename="./DEM/Elevation_above_Floodplain",format="GTiff",overwrite=T)
+```
+
+And now to snag those `points` for the cost-distance analysis. We will use these to determine cost distance from the floodplain to our sites. 
+
+```{r snagpoints,eval=F}
+points<-extract(Elev_above,points,sp=T)
+writeOGR(points,dsn='./FP_points',layer=,'floodplainpoints',driver='ESRI Shapefile')
+```
+
+##Slope, Aspect, Roughness, Terrain Ruggedness Index, Topographic Position Index
+
+```{r slope,eval=F}
+NMC_Slope<-terrain(DEM, opt="slope",unit="degrees",neighbors=8)
+NMC_aspect<-terrain(DEM, opt="aspect",unit="degrees",neighbors=8)
+NMC_tri<-terrain(DEM, opt="TRI")
+roughness<-terrain(DEM, opt="roughness")
+```
+
+##Cost-Distance from Canyon Bottom
+
+```{r grass,eval=F}
+#To calculate cost distance we use Campbell et al 2019 Laplace function
+laplace.fun <- function(x){
+  a <-(-1.705)
+  b<- 23.190
+  c <- 57.603
+  d <-0.184
+  e<- (-0.00289)
+  last<- d+(e*(x))
+  up<-(-abs((x-a)/b))
+  down<-1/(2*b)
+  yay<-c*(down*exp(up))+last
+  return(yay)
+}
+
+#now the Campbell and article where the speeds are derived only go up to 30 degreees. After 69 degrees the Laplace equation results in negative values, which isnt possible. So I have assigned NA values to any slop over 69 degrees.
+NMC_Slope[NMC_Slope>69]<-NA
+
+#using calc (do i need to account for cell size? is this doing what I think it is?)
+#so this gives us the walking speed in this cell (ex. 2.4m/s)
+cell_speed<-calc(NMC_Slope,fun=laplace.fun)
+#so higher values are actually least cost, so i think we need to do the cell size *DOUBLE CHECK THIS!*
+cost_surf<-calc(cell_speed, fun=function(x){5/x})
+writeRaster(cost_surf,filename="./DEM/NMC_CostSurf",format="GTiff",overwrite=T)
+
+################################################
+#For cost distance, it only takes points... so we have to make some points here. I am going to use the absence points that have an elevation above floodplain of <2meters.
+
+#################################################
+#Now I think I have to take it to grass
+#file path to my DEM raster
+rname <- paste(getwd(), "DEM/NMCDEM/NMCDEM.tif", sep="/")
+
+#fingering the GRASS folder thing
+loc<-initGRASS("D:/Programs/GRASS GIS 7.4.0",
+               home=getwd(), gisDbase="D:/Desktop/Dissertation/GIS/",
+               location="Nine_Mile_UTMZ12N_NAD83",mapset="TEST",override=T)
+
+#reading my raster into a GRASSter
+execGRASS("r.in.gdal",parameters=list(input=rname, output="NMCDEM_GRASS"))
+
+#setting the region
+execGRASS("g.region", parameters=list(raster="NMCDEM_GRASS") ) 
+
+##load in my shapefile
+shapename<-paste(getwd(),"FP_Points","floodplainpoints.shp",sep="/")
+
+execGRASS("v.in.ogr", parameters=list(input=shapename,output="floodplainpoints_GRASS"))
+
+#read it into grass
+execGRASS("r.in.gdal",parameters=list(input="D:/Desktop/Dissertation/GIS/DEM/NMC_CostSurf.tif", output="NMC_CostSurf_GRASS1"))
+#Now run the accumulated cost distance here and seems to work
+
+execGRASS("r.cost",parameters=list(input="NMC_CostSurf_GRASS1",output="NMC_CD",start_points="floodplainpoints_GRASS"),flags="overwrite")
+
+#export it!
+execGRASS("r.out.gdal",parameters=list(input="NMC_CD", output="D:/Desktop/Dissertation/GIS/DEM/NMC_CD",format="GTiff",type="CFloat64"),flags=c("overwrite"))
+
+
+#YUS! But this is measured in seconds so we need to so we need to divide the NMC_CD cells by 60
+#reading in
+NMC_CD<-raster("./DEM/NMC_CD.tif")
+#converting to minutes
+NMC_CD<-calc(NMC_CD, fun=function(x){x/60})
+```
+
+#Extracting data
+
+##Elevation for Sites and RP
+```{r evelexta,eval=F}
+#sites
+masterdata_sp@data$elevationr<-raster::extract(x=DEM,y=masterdata_sp,methods="simple")
+
+#random points
+abs@data$elevationr<-raster::extract(x=DEM,y=abs,methods="simple")
+```
+##Slope, Aspect, Roughness, Terrain Ruggedness Index
+
+```{r othexta,eval=F}
+#sites
+masterdata_sp@data$sloper<-raster::extract(x=NMC_Slope,y=masterdata_sp,methods="simple")
+masterdata_sp@data$aspectr<-raster::extract(x=NMC_aspect,y=masterdata_sp,methods="simple")
+masterdata_sp@data$roughnessr<-raster::extract(x=roughness,y=masterdata_sp,methods="simple")
+masterdata_sp@data$TRIr<-raster::extract(x=NMC_tri,y=masterdata_sp,methods="simple")
+
+#random points
+abs@data$sloper<-raster::extract(x=NMC_Slope,y=abs,methods="simple")
+abs@data$aspectr<-raster::extract(x=NMC_aspect,y=abs,methods="simple")
+abs@data$roughnessr<-raster::extract(x=roughness,y=abs,methods="simple")
+abs@data$TRIr<-raster::extract(x=NMC_tri,y=abs,methods="simple")
+```
+
+##Elevation above floodplain for Sites and RP
+```{r cdFP,eval=F}
+#sites
+masterdata_sp@data$elevabvFPr<-raster::extract(x=Elev_above,y=masterdata_sp,methods="simple")
+
+#random points
+abs@data$elevabvFPr<-raster::extract(x=Elev_above,y=abs,methods="simple")
+```
+
+##Cost-distance from floodplain to Sites and RP
+```{r evelab,eval=F}
+#sites
+masterdata_sp@data$CDr<-raster::extract(x=NMC_CD,y=masterdata_sp,methods="simple")
+
+#random points
+abs@data$CDr<-raster::extract(x=NMC_CD,y=abs,methods="simple")
+```
+
+#Generating Viewsheds
+##Data
+need a smaller raster for this to not take 90 days. We are just going to take the 8kmx8km extent of the boundary and add on 4km in every direction for a 12x12km area.
+```{r rastercrop,eval=F}
+#Cropping
+DEM_crop<-crop(DEM,extent(c(560356.6,584356.6,4389878,4413878))) 
+#save
+writeRaster(DEM_crop,filename="./DEM/DEM_crop",format="GTiff",overwrite=T)
+#loading into grass
+execGRASS("r.in.gdal",parameters=list(input="D:/Desktop/Dissertation/GIS/DEM/DEM_crop.tif", output="DEM_crop_GRASS"))
+```
+##Loop for Site VS
+-i is each row/site/RP
+- assign as object, save as shapefile, open in grass, run viewshed, write raster, open raster in R, count total cells visible, total cells visible in FP, save numbers, repeat with next point and overwrite
+
+```{r vssites,eval=F}
+masterdata_sp$VS_tot<-NA
+masterdata_sp$VS_fp<-NA
+
+for (i in 1:nrow(masterdata_sp)){
+  #seperate out the one point for the individual VS analysis
+  p<-masterdata_sp[i,]
+  writeOGR(p,dsn='./vspoint',layer=,'point',driver='ESRI Shapefile',overwrite_layer=T)
+  
+  #Open it in GRASS
+  shapename<-paste(getwd(),"vspoint","point.shp",sep="/")
+
+  execGRASS("v.in.ogr", parameters=list(input=shapename,output="point_GRASS"),flags=c("overwrite"))
+  #VIEWSHED!
+  execGRASS("r.viewshed",parameters=list(input="DEM_crop_GRASS",output="VS", coordinates=coordinates(p), memory=10000), flags=c("overwrite","b","c"))
+  #export the raster
+  execGRASS("r.out.gdal",parameters=list(input="VS", output="D:/Desktop/Dissertation/GIS/DEM/VS.tif",format="GTiff",type="UInt16"),flags=c("overwrite"))
+  #read the raster into r
+  VS<-raster("./DEM/VS.tif")
+  #how many cells are visible (1 in the raster)
+  masterdata_sp[i,53]<-cellStats(VS,sum)
+  #and in the Floodplain?
+  masterdata_sp[i,52]<-cellStats(mask(VS,floodplains),sum)
+}
+```
+
+##Loop for Random Points
+```{r vsrp,eval=F}
+abs$VS_tot<-NA
+abs$VS_fp<-NA
+
+for (i in 1:nrow(abs)){
+  #seperate out the one point for the individual VS analysis
+  p<-abs[i,]
+  writeOGR(p,dsn='./vspoint',layer=,'point',driver='ESRI Shapefile',overwrite_layer=T)
+  
+  #Open it in GRASS
+  shapename<-paste(getwd(),"vspoint","point.shp",sep="/")
+
+  execGRASS("v.in.ogr", parameters=list(input=shapename,output="point_GRASS"),flags=c("overwrite"))
+  #VIEWSHED!
+  execGRASS("r.viewshed",parameters=list(input="DEM_crop_GRASS",output="VS", coordinates=coordinates(p), memory=10000), flags=c("overwrite","b","c"))
+  #export the raster
+  execGRASS("r.out.gdal",parameters=list(input="VS", output="D:/Desktop/Dissertation/GIS/DEM/VS.tif",format="GTiff",type="UInt16"),flags=c("overwrite"))
+  #read the raster into r
+  VS<-raster("./DEM/VS.tif")
+  #how many cells are visible (1 in the raster)
+  abs[i,10]<-cellStats(VS,sum)
+  #and in the Floodplain?
+  abs[i,11]<-cellStats(mask(VS,floodplains),sum)
+}
+```
+
+
+#Analyses 1 - PCA of site measurements to look for distinct clustering
+
+#Analysis 2 - Viewsheds of Storage features
+##True Random
+###Total Visibility
+The viewsheds of random points are significantly larger than that of storage features.
+
+```{r trviewshed}
+#subset to just storage
+stor_sites<-masterdata_sp[na.omit(masterdata_sp@data$type)=="stor",]
+#Boxplot - Non-overlapping notches indicate significant difference
+boxplot(stor_sites$VS_tot,abs$VS_tot,notch=T,outline=F,names=c("Sites", "Random Points"),ylab="Viewshed")
+#Histogram shows the two distributions. Storage sites are in red
+hist(abs$VS_tot,breaks=200,xlab="Viewshed Size",main="Distribution of Random Point VS (white) and Storage VS (red)")
+hist(stor_sites$VS_tot,add=T, col=2)
+#Stor Sites
+summary(stor_sites$VS_tot)
+#random points
+summary(abs$VS_tot)
+
+#here is a dataset that we will use for modeling
+VS_tots<-data.frame(stor=c(rep(1,nrow(stor_sites)),rep(0,length(na.omit(abs@data$VS_tot)))),VS_tot=c(stor_sites@data$VS_tot,na.omit(abs@data$VS_tot)),VS_fp=c(stor_sites@data$VS_fp,na.omit(abs@data$VS_fp)),elevabvFPr=c(stor_sites@data$elvbvFP,abs@data$elevabvFPr[is.na(abs@data$VS_fp) == FALSE]))
+
+#LM with dummy variable
+VS_tot_glm<-glm(VS_tot~elevabvFPr+factor(stor),data=VS_tots,family=quasipoisson(link="log"))
+summary(VS_tot_glm)
+plot(VS_tot~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_tot_glm,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_tot_glm,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+
+#Interaction this allows for the slope to differ
+VS_tot_glm1<-glm(VS_tot~elevabvFPr*factor(stor),data=VS_tots,family=quasipoisson(link="log"))
+summary(VS_tot_glm1)
+plot(VS_tot~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_tot_glm1,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_tot_glm1,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+#models are the same, but why the large CI on the second one?
+anova(VS_tot_lm,VS_tot_lm1)
+```
+###Visibility from FP
+```{r FPviewshed}
+boxplot(stor_sites$VS_fp,abs$VS_fp,notch=T,outline=F,names=c("Sites", "Random Points"),ylab="Viewshed of Flood Plain")
+hist(abs$VS_fp,breaks=20)
+hist(stor_sites$VS_fp,add=T, col=2,breaks=20)
+#Stor Sites
+summary(stor_sites$VS_fp)
+#random points
+summary(abs$VS_fp)
+
+#LM with dummy variable
+VS_fp_glm<-glm.nb(VS_fp~elevabvFPr+factor(stor),data=VS_tots)
+summary(VS_fp_glm)
+plot(VS_fp~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_fp_glm,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_fp_glm,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+
+#Interaction this allows for the slope to differ
+VS_fp_glm1<-glm.nb(VS_fp~elevabvFPr*factor(stor),data=VS_tots)
+summary(VS_fp_glm1)
+plot(VS_fp~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_fp_glm1,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_fp_glm1,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+#models are the same, but why the large CI on the second one?
+anova(VS_tot_glm,VS_tot_glm1)
+```
+##Only RP within the elvation above flood plain band observed among storage features
+Needed a larger sample of points within the constrained sample, so I seperated out those that are within the elevational band of hte flood plain.
+
+```{r onlyabs,eval=F}
+only_abs_constrained<-abs[abs@data$elevabvFPr >= min(stor_sites@data[,50]) & abs@data$elevabvFPr <= max(stor_sites@data[,50]),]
+
+
+for (i in 121:140){
+  #seperate out the one point for the individual VS analysis
+  p<-only_abs_constrained[i,]
+  writeOGR(p,dsn='./vspoint',layer=,'point',driver='ESRI Shapefile',overwrite_layer=T)
+  
+  #Open it in GRASS
+  shapename<-paste(getwd(),"vspoint","point.shp",sep="/")
+  
+  execGRASS("v.in.ogr", parameters=list(input=shapename,output="point_GRASS"),flags=c("overwrite"))
+  #VIEWSHED!
+  execGRASS("r.viewshed",parameters=list(input="DEM_crop_GRASS",output="VS", coordinates=coordinates(p), memory=10000), flags=c("overwrite","b","c"))
+  #export the raster
+  execGRASS("r.out.gdal",parameters=list(input="VS", output="D:/Desktop/Dissertation/GIS/DEM/VS.tif",format="GTiff",type="UInt16"),flags=c("overwrite"))
+  #read the raster into r
+  VS<-raster("./DEM/VS.tif")
+  #how many cells are visible (1 in the raster)
+  only_abs_constrained[i,10]<-cellStats(VS,sum)
+  #and in the Floodplain?
+  only_abs_constrained[i,11]<-cellStats(mask(VS,floodplains),sum)
+  print(Sys.time())
+}
+
+
+```
+
+###Total Visibility
+```{r trcviewshed}
+abs_constrained<-only_abs_constrained
+#Boxplot - Non-overlapping notches indicate significant difference
+boxplot(stor_sites$VS_tot,abs_constrained$VS_tot,notch=T,outline=F,names=c("Sites", "Random Points Constrained"),ylab="Viewshed")
+#
+hist(abs_constrained$VS_tot,breaks=20)
+hist(stor_sites$VS_tot,add=T, col=2,breaks=20)
+#Stor Sites
+summary(stor_sites$VS_tot)
+#random points
+summary(abs_constrained$VS_tot)
+
+#here is a dataset that we will use for modeling
+VS_tots<-data.frame(stor=c(rep(1,nrow(stor_sites)),rep(0,length(na.omit(abs_constrained@data$VS_tot)))),VS_tot=c(stor_sites@data$VS_tot,na.omit(abs_constrained@data$VS_tot)),VS_fp=c(stor_sites@data$VS_fp,na.omit(abs_constrained@data$VS_fp)),elevabvFPr=c(stor_sites@data$elvbvFP,abs_constrained@data$elevabvFPr[is.na(abs_constrained@data$VS_fp) == FALSE]))
+
+#LM with dummy variable
+VS_tot_glm<-glm(VS_tot~elevabvFPr+factor(stor),data=VS_tots,family=quasipoisson(link="log"))
+summary(VS_tot_glm)
+plot(VS_tot~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_tot_glm,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_tot_glm,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+
+#Interaction this allows for the slope to differ
+VS_tot_glm1<-glm(VS_tot~elevabvFPr*factor(stor),data=VS_tots,family=quasipoisson(link="log"))
+summary(VS_tot_glm1)
+plot(VS_tot~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_tot_glm1,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_tot_glm1,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+#models are the same, but why the large CI on the second one?
+anova(VS_tot_lm,VS_tot_lm1)
+```
+###Visibility from FP
+
+```{r FPcviewshed}
+boxplot(stor_sites$VS_fp,abs_constrained$VS_fp,notch=T,outline=F,names=c("Sites", "Random Points Constrained"),ylab="Viewshed of Floodplain")
+hist(abs_constrained$VS_fp,breaks=40)
+hist(stor_sites$VS_fp,add=T, col=2,breaks=20)
+
+#LM with dummy variable
+#VS_tot_glm<-glm.nb(VS_fp~elevabvFPr+factor(stor),data=VS_tots)
+VS_tot_glm<-glm(VS_fp~elevabvFPr+factor(stor),data=VS_tots,family=quasipoisson)
+summary(VS_tot_glm)
+plot(VS_fp~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_tot_glm,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_tot_glm,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+
+#Interaction this allows for the slope to differ
+#VS_tot_glm1<-glm.nb(VS_fp~elevabvFPr*factor(stor),data=VS_tots,link="log")
+VS_tot_glm1<-glm(VS_fp~elevabvFPr*factor(stor),data=VS_tots,family=quasipoisson)
+summary(VS_tot_glm1)
+plot(VS_fp~elevabvFPr,data=VS_tots,col=stor+1,pch=19,cex=.5)
+VS_y=predict(VS_tot_glm1,newdata=data.frame(stor=1,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_y$fit,col=2)
+lines(VS_y$fit+VS_y$se.fit,lty=2,col=2)
+lines(VS_y$fit-VS_y$se.fit,lty=2,col=2)
+VS_x=predict(VS_tot_glm1,newdata=data.frame(stor=0,elevabvFPr=0:500),se.fit=T,type="response")
+lines(VS_x$fit)
+lines(VS_x$fit+VS_x$se.fit,lty=2)
+lines(VS_x$fit-VS_x$se.fit,lty=2)
+
+#models are the same, but why the large CI on the second one?
+anova(VS_tot_glm,VS_tot_glm1)
+```
+
+
+
+
+```{r lessthan}
+mean_dif_VS<-data.frame(mean_dif=NA)
+
+#absence VS-site VS should = a) a positive mean
+for(i in 1:10000){
+  samp_row<-sample(1:nrow(stor_sites@data),1)
+  samp_abs<-sample(1:nrow(abs_constrained),1)
+  mean_dif_VS[i,1]<-abs_constrained@data[samp_abs,10]-stor_sites@data[samp_row,53]
+}
+
+pnorm(0,mean=mean(mean_dif_VS[,1]),sd=sd(mean_dif_VS[,1]))
+
+#non Sig
+########################################
+#Access!
+mean_dif_VS<-data.frame(mean_dif=NA)
+
+
+#absence VS-site VS should = a) a positive mean
+for(i in 1:10000){
+  samp_row<-sample(1:nrow(stor_sites@data),1)
+  samp_abs<-sample(1:nrow(abs_constrained),1)
+  mean_dif_VS[i,1]<-abs_constrained@data[samp_abs,9]-stor_sites@data[samp_row,51]
+}
+hist(mean_dif_VS[,1])
+mean_dif_VS<-na.omit(mean_dif_VS)
+pnorm(0,mean=mean(mean_dif_VS[,1]),sd=sd(mean_dif_VS[,1]))
+
+#just stor sites?
+plot(VS_tot~elvbvFP,data=stor_sites)
+lm1.null<-lm(VS_tot~elevabvFPr,data=abs_constrained)
+lm1<-lm(VS_tot~elvbvFP,data=stor_sites)
+abline(lm1)
+abline(confint(lm1)[1], confint(lm1)[2],lty=2)
+abline(confint(lm1)[3], confint(lm1)[4],lty=2)
+abline(lm1.null,col=2)
+abline(confint(lm1.null)[1], confint(lm1.null)[2],lty=2,col=2)
+abline(confint(lm1.null)[3], confint(lm1.null)[4],lty=2,col=2)
+
+
+
+plot(CDr~elvbvFP,data=stor_sites)
+lm2.null<-lm(CDr~elevabvFPr,data=abs_constrained)
+lm2<-lm(CDr~elvbvFP,data=stor_sites)
+abline(lm2)
+abline(confint(lm2)[1], confint(lm2)[2],lty=2)
+abline(confint(lm2)[3], confint(lm2)[4],lty=2)
+abline(lm2.null,col=2)
+abline(confint(lm2.null)[1], confint(lm2.null)[2],lty=2,col=2)
+abline(confint(lm2.null)[3], confint(lm2.null)[4],lty=2,col=2)
+
+library(mgcv)
+plot(VS_tot~CDr,data=abs_constrained,pch=19)
+points(VS_tot~CDr,data=stor_sites,col=2,pch=19)
+gam3.null<-gam(VS_tot~s(CDr,k=4),data=abs_constrained,family=poisson)
+summary(gam3.null)
+newdat<-predict(gam3.null,newdata=data.frame(CDr=0:187),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+gam3<-gam(VS_tot~s(CDr,k=4),data=stor_sites,family=poisson)
+summary(gam3)
+newdat<-predict(gam3,newdata=data.frame(CDr=0:187),type="response",se.fit=T)
+lines(newdat$fit,col=2)
+lines(newdat$fit+newdat$se.fit,lty=2,col=2)
+lines(newdat$fit-newdat$se.fit,lty=2,col=2)
+
+aov(gam3.null,gam3)
+
+
+
+pres_abs<-data.frame(presabs=c(rep(0,652),rep(1,67)),VS_tot=(c(abs_constrained$VS_tot,stor_sites$VS_tot)),CDr=(c(abs_constrained$CDr,stor_sites$CDr)),elevabvFP=c(abs_constrained$elevabvFPr,stor_sites$elvbvFP))
+
+plot(VS_tot~CDr,data=abs_constrained,pch=19)
+points(VS_tot~CDr,data=stor_sites,col=2,pch=19)
+gam4<-gam(VS_tot~s(CDr,k=2)+s(CDr,presabs,bs="re")+s(presabs,bs="re"),data=pres_abs,family=quasipoisson)
+gam4.null<-gam(VS_tot~s(CDr,k=4),data=pres_abs,family=quasipoisson)
+newdat<-predict(gam4,newdata=data.frame(CDr=0:187,presabs=1),type="response",se.fit=T)
+lines(newdat$fit,col=2)
+lines(newdat$fit+newdat$se.fit,lty=2,col=2)
+lines(newdat$fit-newdat$se.fit,lty=2,col=2)
+newdat<-predict(gam4,newdata=data.frame(CDr=0:187,presabs=0),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+pres_abs<-na.omit(pres_abs)
+plot(elevabvFPr~CDr,data=abs_constrained,pch=19)
+points(elvbvFP~CDr,data=stor_sites,col=2,pch=19)
+gam5<-gam(elevabvFP~s(CDr,k=4)+s(VS_tot)+s(CDr,presabs,bs="re")+s(presabs,bs="re"),data=pres_abs,family=gaussian)
+newdat<-predict(gam5,newdata=data.frame(CDr=0:200,presabs=1,VS_tot=seq(2500,205700,1016)),type="response",se.fit=T)
+lines(newdat$fit,col=2)
+lines(newdat$fit+newdat$se.fit,lty=2,col=2)
+lines(newdat$fit-newdat$se.fit,lty=2,col=2)
+newdat<-predict(gam5,newdata=data.frame(CDr=0:200,presabs=0,VS_tot=seq(2500,205700,1016)),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+plot(elevabvFPr~VS_tot,data=abs_constrained,pch=19)
+points(elvbvFP~VS_tot,data=stor_sites,col=2,pch=19)
+newdat<-predict(gam5,newdata=data.frame(CDr=0:200,presabs=1,VS_tot=seq(2500,205700,1016)),type="response",se.fit=T)
+lines(seq(2500,205700,1016),newdat$fit,col=2)
+lines(seq(2500,205700,1016),newdat$fit+newdat$se.fit,lty=2,col=2)
+lines(seq(2500,205700,1016),newdat$fit-newdat$se.fit,lty=2,col=2)
+newdat<-predict(gam5,newdata=data.frame(CDr=0:200,presabs=0,VS_tot=seq(2500,205700,1016)),type="response",se.fit=T)
+lines(seq(2500,205700,1016),newdat$fit)
+lines(seq(2500,205700,1016),newdat$fit+newdat$se.fit,lty=2)
+lines(seq(2500,205700,1016),newdat$fit-newdat$se.fit,lty=2)
+
+gam6<-gam(presabs~s(CDr,k=5)+s(VS_tot,k=5)+s(elevabvFP,k=5),data=pres_abs,family=quasibinomial)
+summary(gam6)
+plot(presabs~CDr,data=pres_abs)
+newdat<-predict(gam6,newdata=data.frame(CDr=0:200,elevabvFP=mean(pres_abs$elevabvFP),VS_tot=mean(pres_abs$VS_tot)),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+plot(presabs~VS_tot,data=pres_abs)
+newdat<-predict(gam6,newdata=data.frame(CDr=mean(pres_abs$CDr),elevabvFP=mean(pres_abs$elevabvFP),VS_tot=seq(2500,205700,1016)),type="response",se.fit=T)
+lines(seq(2500,205700,1016),newdat$fit)
+lines(seq(2500,205700,1016),newdat$fit+newdat$se.fit,lty=2)
+lines(seq(2500,205700,1016),newdat$fit-newdat$se.fit,lty=2)
+
+plot(presabs~elevabvFP,data=pres_abs)
+newdat<-predict(gam6,newdata=data.frame(CDr=0:200,elevabvFP=mean(pres_abs$elevabvFP),VS_tot=mean(pres_abs$VS_tot)),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+
+gam6<-gam(presabs~s(CDr,k=5)+s(VS_tot,k=5)+s(elevabvFP,k=5),data=pres_abs,family=quasibinomial)
+summary(gam6)
+plot(presabs~CDr,data=pres_abs)
+newdat<-predict(gam6,newdata=data.frame(CDr=0:200,elevabvFP=mean(pres_abs$elevabvFP[pres_abs$presabs==1]),VS_tot=mean(pres_abs$VS_tot[pres_abs$presabs==1])),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+plot(presabs~VS_tot,data=pres_abs)
+newdat<-predict(gam6,newdata=data.frame(CDr=mean(pres_abs$CDr[pres_abs$presabs==1]),elevabvFP=mean(pres_abs$elevabvFP[pres_abs$presabs==1]),VS_tot=seq(2500,205700,1016)),type="response",se.fit=T)
+lines(seq(2500,205700,1016),newdat$fit)
+lines(seq(2500,205700,1016),newdat$fit+newdat$se.fit,lty=2)
+lines(seq(2500,205700,1016),newdat$fit-newdat$se.fit,lty=2)
+
+plot(presabs~elevabvFP,data=pres_abs)
+newdat<-predict(gam6,newdata=data.frame(CDr=mean(pres_abs$CDr[pres_abs$presabs==1]),elevabvFP=0:200,VS_tot=mean(pres_abs$VS_tot[pres_abs$presabs==1])),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+
+
+
+
+
+gam7<-gam(presabs~s(CDr,k=5)+s(VS_tot,k=5),data=pres_abs,family=quasibinomial)
+summary(gam7)
+plot(presabs~CDr,data=pres_abs)
+newdat<-predict(gam7,newdata=data.frame(CDr=0:200,elevabvFP=0:200,VS_tot=seq(2500,205700,1016)),type="response",se.fit=T)
+lines(newdat$fit)
+lines(newdat$fit+newdat$se.fit,lty=2)
+lines(newdat$fit-newdat$se.fit,lty=2)
+
+library(pscl)
+zin1<-zeroinfl(presabs~CDr+VS_tot+elevabvFP,data=pres_abs,dist="negbin",link="logit")
+
+rf1<-randomForest(presabs~CDr+VS_tot+elevabvFP,data=pres_abs)
+
+library(dismo)
+jar <- paste(system.file(package="dismo"), "/java/maxent.jar", sep='')
+if(file.exists(jar)){
+  maxent1<-maxent(x=pres_abs[,-1],p=as.factor(pres_abs[,1]))
+}
+
+
+
+ks.test(pres_abs$CDr[pres_abs$presabs==0],pres_abs$CDr[pres_abs$presabs==1],alternative="less")
+ks.test(pres_abs$elevabvFP[pres_abs$presabs==0],pres_abs$elevabvFP[pres_abs$presabs==1],alternative="less")
+ks.test(pres_abs$VS_tot[pres_abs$presabs==0],pres_abs$VS_tot[pres_abs$presabs==1])
+
+boxplot(pres_abs$CDr[pres_abs$presabs==0],pres_abs$CDr[pres_abs$presabs==1],notch=T,names=c("Random","Storage"),ylab="Cost Distance (minutes)")
+boxplot(pres_abs$elevabvFP[pres_abs$presabs==0],pres_abs$elevabvFP[pres_abs$presabs==1],notch=T,names=c("Random","Storage"), ylab="Elevation above Floddplain (meters)")
+boxplot(pres_abs$VS_tot[pres_abs$presabs==0],pres_abs$VS_tot[pres_abs$presabs==1],notch=T,names=c("Random","Storage"),ylab="Viewshed Size")
+```
+
+
+#Accessibility
+##True Random
+###Elevation above FP
+```{r elevabvtr}
+boxplot(stor_sites$elvbvFP,abs$elevabvFPr,notch=T)
+```
+###T(errain)R(oughness)I(Index)
+```{r tristr}
+boxplot(stor_sites$TRIr,abs$TRIr,notch=T)
+```
+###Roughness
+```{r tritr}
+boxplot(stor_sites$roughnessr,abs$roughnessr,notch=T)
+```
+###Cost-distance from FP
+```{r cdtr}
+boxplot(stor_sites$CDr,abs$CDr,notch=T)
+```
+
+##Constrained by Elevation above FP
+###Elevation above FP
+```{r elevabvdfp}
+boxplot(stor_sites$elvbvFP,abs_constrained$elevabvFPr,notch=T)
+```
+###T(errain)R(oughness)I(Index)
+```{r trsifp}
+boxplot(stor_sites$TRIr,abs_constrained$TRIr,notch=T)
+```
+###Roughness
+```{r trifp}
+boxplot(stor_sites$rghnssr,abs_constrained$roughnessr,notch=T)
+```
+###Cost-distance from FP
+```{r cdfp}
+boxplot(stor_sites$CDr,abs_constrained$CDr,notch=T)
+```
+
+#Patterning in Aspect
+
+
+
