@@ -611,15 +611,17 @@ Next we look at the mean viewshed of occupied of in use storage features relativ
 Last we look at mean elevation above the floodplain of in use storage features.
 
 ```{r storresults,message=F,verbose=F}
+par(pty="s")
+par(mfrow=c(1,3))
 ###############################
 #Number of stors
-mod1<-gam(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
-summary(mod1)
+#mod1<-gam(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
+#summary(mod1)
 #hist(residuals(mod1))
-acf(resid(mod1),lag.max=1000)
-plot(mod1,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1)[1]))
-plot(mod1,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1)[1]))
-plot(mod1,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE",shift= ilink(coef(mod1)[1]))
+#acf(resid(mod1),lag.max=1000)
+#plot(mod1,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1)[1]))
+#plot(mod1,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1)[1]))
+#plot(mod1,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE",shift= ilink(coef(mod1)[1]))
 
 
 #gamm
@@ -628,43 +630,56 @@ summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 
-plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE",shift= ilink(coef(mod1$gam)[1]))
+#plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
+#plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE")
+
+invgde<-1-df$meanGDE
+plot(numstor~invgde,df)
+abline(lm(numstor~invgde,df))
 
 ########################################################################
 #################
 #Viewshed
-mod1<-gam(VS~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
-summary(mod1)
+#mod1<-gam(VS~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
+#summary(mod1)
 #hist(residuals(mod1))
-acf(resid(mod1),lag.max=1000)
+#acf(resid(mod1),lag.max=1000)
 
 #gamm
 mod1<-gamm(VS~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
-plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=3,shade=T,residuals=T,ylab="VS",xlab="GDE",shift= ilink(coef(mod1$gam)[1]))
+#plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
+#plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=3,shade=T,residuals=T,ylab="VS",xlab="GDE",shift= coef(mod1$gam)[1]) #this plot is close but not exact
+
+invgde<-1-df$meanGDE
+plot(VS~invgde,df)
+abline(lm(VS~invgde,df))
 
 ########################################################################
 #################
 #ElevFP
-mod1<-gam(elevfp~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
-summary(mod1)
+#mod1<-gam(elevfp~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
+#summary(mod1)
 #hist(residuals(mod1))
-acf(resid(mod1),lag.max=1000)
+#acf(resid(mod1),lag.max=1000)
 
 #gamm
 mod1<-gamm(elevfp~s(avgprecip)+s(spd,k=3)+s(meanGDE),data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
-plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Elev Above FP",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Elev Above FP",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Elev",xlab="GDE",shift= ilink(coef(mod1$gam)[1]))
+#plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Elev Above FP",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
+#plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Elev Above FP",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Elev",xlab="GDE",shift= coef(mod1$gam)[1]) #this plot is close but not exact...
+
+#inverse plot 
+invgde<-1-df$meanGDE
+plot(elevfp~invgde,df)
+abline(lm(elevfp~invgde,df))
 ```
 
 ## Results!
