@@ -647,7 +647,7 @@ abline(lm(numstor~invgde,df))
 #acf(resid(mod1),lag.max=1000)
 
 #gamm
-mod1<-gamm(VS~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df,correlation=corAR1())
+mod1<-gamm(VS~s(avgprecip)+s(spd)+s(meanGDE),data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
