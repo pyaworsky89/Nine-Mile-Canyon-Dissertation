@@ -335,109 +335,57 @@ plot(meanprobscul~spd,df,col=df$aors+1,pch=19)
 plot(spd~yearBP,df,col=df$aors+1,pch=19)
 
 
-
-#gam
-mod1<-gam(meanGDE~s(avgprecip)+s(spd,k=4)+s(aors,bs="re")+s(aors,spd,bs="re"),data=df)
-summary(mod1)
-acf(resid(mod1),lag.max=1000)
-
-
-plot(meanGDE~spd,df,col=df$aors+1,pch=19)
-preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
-                                      avgprecip=mean(na.omit(df$avgprecip)),
-                                      aors=1
-                                      ),
-               se.fit=T)
-
-lines(seq(0,.3,.001),preds$fit,col=2)
-
-preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
-                                      avgprecip=mean(na.omit(df$avgprecip)),
-                                      aors=0),
-               se.fit=T)
-lines(seq(0,.3,.001),preds$fit,col=1)
-
-plot(meanGDE~avgprecip,df,col=df$aors+1,pch=19)
-preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
-                                      avgprecip=seq(100,450,1),
-                                      aors=1
-                                      ),
-               se.fit=T)
-
-lines(seq(100,450,1),preds$fit,col=2)
-
-preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
-                                      avgprecip=seq(100,450,1),
-                                      aors=0
-                                      ),
-               se.fit=T)
-lines(seq(100,450,1),preds$fit,col=1)
-
-
+###########Mean GDE
 #gamm
-mod1<-gamm(meanGDE~s(avgprecip)+s(spd)+s(aors,bs="re"),data=df,correlation=corAR1())
+mod1<-gamm(meanGDE~s(avgprecip,k=2)+s(spd,k=3)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
+
 
 #hist(resid(mod1$gam))
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 
-plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=2,seWithMean=TRUE,ylab="Mean GDE")
-plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,ylab="Mean GDE")
+plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=2,seWithMean=TRUE,ylab="Mean GDE");box()
+plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,ylab="Mean GDE");box()
 
+#diagnostics
+#residuals
+hist(residuals(mod1$lme, 
+              type="normalized"),
+    main=NA,
+    xlab="Residuals",
+    col="grey")
 
+#dispersion
+resid.ssq <- sum(residuals(mod1$lme,type="pearson")^2)        ## sum of squares of Pearson resids
+resid.df <- summary(mod1$gam)$n - length(coef(mod1$lme))  ## estimated resid df (N-p), or gam.fish$gam$df.residual 
+resid.ssq/resid.df 
+#underfitting
+k.check(mod1$gam)
 
-####probs cul gam
-mod1<-gam(meanprobscul~s(spd,k=3)+s(avgprecip)+s(aors,spd,bs="re")+s(aors,bs="re"),data=df,family="quasibinomial")
-summary(mod1)
-#hist(resid(mod1),main="ProbCul~SPD+AvgPrecip")
-acf(resid(mod1),lag.max=1000)
-
-ilink <- family(mod1)$linkinv
-plot(meanprobscul~spd,df,col=df$aors+1,pch=19)
-preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
-                                      avgprecip=mean(na.omit(df$avgprecip)),
-                                      aors=1
-                                      ),
-               se.fit=T)
-
-lines(seq(0,.3,.001),ilink(preds$fit),col=2)
-
-
-preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
-                                      avgprecip=mean(na.omit(df$avgprecip)),
-                                      aors=0),
-               se.fit=T)
-lines(seq(0,.3,.001),ilink(preds$fit),col=1)
-
-
-plot(meanprobscul~avgprecip,df,col=df$aors+1,pch=19)
-preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
-                                      avgprecip=seq(100,450,1),
-                                      aors=1
-                                      ),
-               se.fit=T)
-
-lines(seq(100,450,1),ilink(preds$fit),col=2)
-
-preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
-                                      avgprecip=seq(100,450,1),
-                                      aors=0
-                                      ),
-               se.fit=T)
-lines(seq(100,450,1),ilink(preds$fit),col=1)
-
-
-
+###################PC
 ##gammmm
-mod1<-gamm(meanprobscul~s(spd)+s(avgprecip)+s(aors,spd,bs="re")+s(aors,bs="re"),data=df,correlation=corAR1())
+mod1<-gamm(meanprobscul~s(spd)+s(avgprecip)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
-
-#hist(resid(mod1$gam),main="ProbCul~SPD+AvgPrecip")
 
 
 plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Probs Cul",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
 plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Probs Cul",xlab="Avg Precip",shift= ilink(coef(mod1$gam)[1]))
+
+#diagnostics
+#residuals
+hist(residuals(mod1$lme, 
+              type="normalized"),
+    main=NA,
+    xlab="Residuals",
+    col="grey")
+
+#dispersion
+resid.ssq <- sum(residuals(mod1$lme,type="pearson")^2)        ## sum of squares of Pearson resids
+resid.df <- summary(mod1$gam)$n - length(coef(mod1$lme))  ## estimated resid df (N-p), or gam.fish$gam$df.residual 
+resid.ssq/resid.df 
+#underfitting
+k.check(mod1$gam)
 ```
 
 
@@ -634,7 +582,19 @@ acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
 plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Num Stor",xlab="GDE")
 
+###
+hist(residuals(mod1$lme, 
+              type="normalized"),
+    main=NA,
+    xlab="Residuals",
+    col="grey")
 
+#dispersion
+resid.ssq <- sum(residuals(mod1$lme,type="pearson")^2)        ## sum of squares of Pearson resids
+resid.df <- summary(mod1$gam)$n - length(coef(mod1$lme))  ## estimated resid df (N-p), or gam.fish$gam$df.residual 
+resid.ssq/resid.df 
+#underfitting
+k.check(mod1$gam)
 ########################################################################
 #################
 #Viewshed
@@ -651,6 +611,19 @@ acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
 plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Viewshed of Floodplain",xlab="GDE",shift= coef(mod1$gam)[1]) #this plot is close but not exact
+###
+hist(residuals(mod1$lme, 
+              type="normalized"),
+    main=NA,
+    xlab="Residuals",
+    col="grey")
+
+#dispersion
+resid.ssq <- sum(residuals(mod1$lme,type="pearson")^2)        ## sum of squares of Pearson resids
+resid.df <- summary(mod1$gam)$n - length(coef(mod1$lme))  ## estimated resid df (N-p), or gam.fish$gam$df.residual 
+resid.ssq/resid.df 
+#underfitting
+k.check(mod1$gam)
 
 ########################################################################
 #################
@@ -661,7 +634,7 @@ plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Viewshed of Floodplain",xlab="G
 #acf(resid(mod1),lag.max=1000)
 
 #gamm
-mod1<-gamm(elevfp~s(avgprecip)+s(spd,k=3)+s(meanGDE),data=df,correlation=corAR1())
+mod1<-gamm(elevfp~s(avgprecip)+s(spd,k=5)+s(meanGDE),data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
@@ -669,6 +642,20 @@ acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Elev Above FP",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
 plot(mod1$gam,select=3,shade=T,residuals=T,ylab="Elevation above Floodplain",xlab="GDE",shift= coef(mod1$gam)[1]) #this plot is close but not exact...
 
+
+###
+hist(residuals(mod1$lme, 
+              type="normalized"),
+    main=NA,
+    xlab="Residuals",
+    col="grey")
+
+#dispersion
+resid.ssq <- sum(residuals(mod1$lme,type="pearson")^2)        ## sum of squares of Pearson resids
+resid.df <- summary(mod1$gam)$n - length(coef(mod1$lme))  ## estimated resid df (N-p), or gam.fish$gam$df.residual 
+resid.ssq/resid.df 
+#underfitting
+k.check(mod1$gam)
 ```
 
 ## Results!
@@ -758,6 +745,89 @@ plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Probs Cul",xlab="Avg Precip",sh
 acf(resid(mod1$lme),lag.max=1000)
 
 hist(resid(mod1$gam),main="ProbCul~SPD+AvgPrecip")
+
+
+
+
+####probs cul gam
+mod1<-gam(meanprobscul~s(spd,k=3)+s(avgprecip)+s(aors,spd,bs="re")+s(aors,bs="re"),data=df,family="quasibinomial")
+summary(mod1)
+#hist(resid(mod1),main="ProbCul~SPD+AvgPrecip")
+acf(resid(mod1),lag.max=1000)
+
+ilink <- family(mod1)$linkinv
+plot(meanprobscul~spd,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(0,.3,.001),ilink(preds$fit),col=2)
+
+
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=0),
+               se.fit=T)
+lines(seq(0,.3,.001),ilink(preds$fit),col=1)
+
+
+plot(meanprobscul~avgprecip,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(100,450,1),ilink(preds$fit),col=2)
+
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=0
+                                      ),
+               se.fit=T)
+lines(seq(100,450,1),ilink(preds$fit),col=1)
+
+
+
+
+#gam
+mod1<-gam(meanGDE~s(avgprecip)+s(spd,k=4)+s(aors,bs="re")+s(aors,spd,bs="re"),data=df)
+summary(mod1)
+acf(resid(mod1),lag.max=1000)
+
+
+plot(meanGDE~spd,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(0,.3,.001),preds$fit,col=2)
+
+preds<-predict(mod1,newdata=data.frame(spd=seq(0,.3,.001),
+                                      avgprecip=mean(na.omit(df$avgprecip)),
+                                      aors=0),
+               se.fit=T)
+lines(seq(0,.3,.001),preds$fit,col=1)
+
+plot(meanGDE~avgprecip,df,col=df$aors+1,pch=19)
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=1
+                                      ),
+               se.fit=T)
+
+lines(seq(100,450,1),preds$fit,col=2)
+
+preds<-predict(mod1,newdata=data.frame(spd=mean(na.omit(df$spd)),
+                                      avgprecip=seq(100,450,1),
+                                      aors=0
+                                      ),
+               se.fit=T)
+lines(seq(100,450,1),preds$fit,col=1)
 
 
 ```
