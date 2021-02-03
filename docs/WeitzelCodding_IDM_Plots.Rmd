@@ -1,0 +1,537 @@
+---
+title: "Ideal Distribution Model Plots"
+author: "Weittzel and Codding with Mods by Yaworsky"
+date: "2/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(viridis)
+library(scales)
+
+```
+
+```{r model}
+
+png("WeitzelCodding_IDMRev_Fig1.png", height=3, width=8, units="in", res=600)
+
+#IFD
+
+#Greene and Stamps 2001 eq1 
+#Suitability (S) can be calculated as:
+#S_i=Q_i-B_i(D_i-M_i)^2
+# where, 
+#Q = intrinsic suitability (the effect of habitat type on fitness, independent of effects of conspecifics)
+#B = parameter that standardizes the range of (D-M)
+#D = conspecific density
+#M = specifies the the pop density (D) at which fitness is maximized 
+
+#As a function
+S<-function(Q, B, D, M){Q-B*(D-M)^2}
+
+#Set density from 0 to 1
+D=seq(0,1,0.001)
+
+#Square plot
+par(pty="s", mfrow=c(1,3))
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Suitability", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1
+Hab1<-S(Q=0.85, B=1.75, D=D, M=0)
+lines(Hab1~D, lwd=2, col=viridis(6)[2])
+#text(0.3, 0.85, "\"NDD\"", col="black", cex=0.9, font=2)
+
+#Hab 2
+Hab2<-S(Q=0.5, B=3, D=D, M=0)
+lines(Hab2~D, lwd=2, col=viridis(6)[3])
+#text(0.3, 0.85, "\"NDD\"", col="black", cex=0.9, font=2)
+
+arrows(0.4, 0.5, 0.1, 0.5, length=0.1, lwd=2, col="black")
+
+#Starting Conditions:
+points(0, max(Hab1), pch=21, bg="black", cex=1.5, xpd=T)
+text(0, max(Hab1), pos=3, "i")
+
+points(0.45, max(Hab2), pch=21, bg="black", cex=1.5, xpd=T)
+text(0.45, max(Hab2), pos=4, "ii")
+
+points(0, max(Hab2), pch=21, bg="black", cex=1.5, xpd=T)
+text(0, max(Hab2), pos=3, "iii")
+
+mtext( "(a)", side=3, line=0, cex=0.8, adj=0)
+
+
+legend("topright", col=viridis(6)[2:3], lwd=2, lty=1, bty="n", legend = c("Habitat 1", "Habitat 2"), cex=0.8, seg.len=3.1)
+
+
+
+
+#ALLEE
+
+
+#Square plot
+par(pty="s")
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+
+#Alee Effects Intensive Foraging/Ag
+Allee1<-S(Q=0.65, B=2, D=D, M=0.25)
+lines(Allee1~D, lwd=2, lty=1, col=viridis(6)[2])
+#text(0.95, 0.5, "Allee", col="black", cex=0.9, xpd=NA, font=2)
+
+Allee2<-S(Q=0.5, B=3, D=D, M=0.25)
+lines(Allee2~D, lwd=2, lty=1, col=viridis(6)[3])
+#text(0.95, 0.5, "Allee", col="black", cex=0.9, xpd=NA, font=2)
+
+
+arrows(0.62, Allee2[1], 0.05, Allee2[2], length=0.1, lwd=2, col="black")
+
+points(0, Allee1[1], pch=21, bg="black", cex=1.5, xpd=T)
+text(0, Allee1[1], pos=3, "i")
+
+points(0.66, Allee2[1], pch=21, bg="black", cex=1.5, xpd=T)
+text(0.66, Allee2[1], pos=4, "ii")
+
+points(0, Allee2[1], pch=21, bg="black", cex=1.5, xpd=T)
+text(0, Allee2[1], pos=1, "iii")
+
+points(0.25, max(Allee1), pch=21, bg="black", cex=1.5, xpd=T)
+text(0.25, max(Allee1), pos=3, "*")
+
+
+mtext( "(b)", side=3, line=0, cex=0.8, adj=0)
+
+
+legend("topright", col=viridis(6)[2:3], lwd=2, lty=1, bty="n", legend = c("Habitat 1", "Habitat 2"), cex=0.8, seg.len=3.1)
+
+
+
+
+
+#IDD
+
+#Square plot
+par(pty="s")
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Baseline (Forager)
+Forage<-S(Q=0.85, B=1.75, D=D, M=0)
+lines(Forage~D, lwd=2, col=viridis(6)[2])
+#text(0.3, 0.85, "\"NDD\"", col="black", cex=0.9, font=2)
+
+#IDD type 1
+Forage<-S(Q=0.85, B=3.5, D=D, M=0)
+lines(Forage~D, lwd=2, col=viridis(6)[2], lty=2)
+#text(0.6, 0.2, "\"IDD\"", col="black", cex=0.9, font=2)
+
+
+#IDD type 2
+Forage<-S(Q=0.85, B=1, D=D, M=0)
+lines(Forage~D, lwd=2, col=viridis(6)[2], lty=3)
+
+
+#Hab 2
+Hab2<-S(Q=0.5, B=3, D=D, M=0)
+lines(Hab2~D, lwd=2, col=viridis(6)[3])
+#text(0.3, 0.85, "\"NDD\"", col="black", cex=0.9, font=2)
+
+arrows(0.275, 0.5, 0.1, 0.5, length=0.1, lwd=2, col="black")
+
+#Starting Conditions:
+points(0, max(Hab1), pch=21, bg="black", cex=1.5, xpd=T)
+text(0, max(Hab1), pos=3, "i")
+
+points(0.315, max(Hab2), pch=21, bg="black", cex=1.5, xpd=T)
+points(0.45, max(Hab2), pch=21, bg="black", cex=1.5, xpd=T)
+points(0.59, max(Hab2), pch=21, bg="black", cex=1.5, xpd=T)
+text(0.45, max(Hab2), pos=4, "ii")
+
+points(0, max(Hab2), pch=21, bg="black", cex=1.5, xpd=T)
+text(0, max(Hab2), pos=3, "iii")
+
+mtext( "(c)", side=3, line=0, cex=0.8, adj=0)
+
+legend("topright", col=viridis(6)[c(2,2,2,3)], lwd=2, lty=c(1,2,3,1), bty="n", legend = c("Habitat 1","H1 -IDD", "H1 +IDD", "Habitat 2"), cex=0.8, seg.len=3.1)
+
+
+
+dev.off()
+
+
+```
+
+
+```{r model 2}
+
+#####################
+par(pty="s")
+#Predictions for talk:
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Utility Per Capita", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population in Habitat", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1); mtext("(benefits-costs)", side=2)#Clip plot so no line goes below x or y
+
+#Baseline (Forager)
+Forage<-S(Q=0.85, B=1.75, D=D, M=0)
+lines(Forage~D, lwd=3, col="#D20014")
+text(0.3, 0.85, "\"competitive\"", col="black", cex=0.9, font=2)
+
+#Alee Effects Intensive Foraging/Ag
+Intense<-S(Q=0.65, B=2, D=D, M=0.5)
+lines(Intense~D, lwd=3, lty=1, col="#003263")
+text(0.95, 0.5, "\"cooperative\"", col="black", cex=0.9, xpd=NA, font=2)
+
+#Starting Conditions:
+points(0, max(Forage), pch=21, bg="black", cex=1.5)#red3
+text(0, max(Forage), pos=3, "a")
+
+#Switch point
+points(.6325, min(Intense),pch=21, bg="black", cex=1.5)
+text(.6325, min(Intense), pos=4, "b")
+
+arrows(0.6, 0.15, 0.04, 0.15, length=0.15, lwd=2, col="black")
+
+points(0, min(Intense),pch=21, bg="black", cex=1.5)
+text(0, min(Intense), pos=1, "c")
+
+#Production Maxima
+points(0.5, max(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+text(0.5, max(approx(Intense)$y), pos=3, "d")
+text(0.5, max(approx(Intense)$y), pos=3, "optimal group size?", font=3)
+text(0.5, max(approx(Intense)$y), pos=1, "d")
+
+#Production switch
+points(1, min(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+text(1, min(approx(Intense)$y), pos=1, "e", xpd=NA)
+
+#export as 5x5
+
+#varyin group size
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Utility Per Capita", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population in Habitat", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1); mtext("(benefits-costs)", side=2)#Clip plot so no line goes below x or y
+
+Intense<-S(Q=0.65, B=2, D=D, M=0.5)
+lines(Intense~D, lwd=3, lty=1, col="#003263", xpd=F)
+points(0.5, max(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+Intense<-S(Q=0.65, B=2, D=D, M=0.15)
+lines(Intense~D, lwd=3, lty=1, col="#004c96")
+points(0.15, max(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+arrows(0.4, 0.65, 0.25, 0.65, length=0.1, lwd=2, col="black")
+
+
+Intense<-S(Q=0.65, B=2, D=D, M=0.5)
+lines(Intense~D, lwd=3, lty=1, col="#003263", xpd=F)
+points(0.5, max(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+Intense<-S(Q=0.65, B=2, D=D, M=0.85)
+lines(Intense~D, lwd=3, lty=1, col="#00254a", xpd=F)
+points(0.85, max(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+arrows(0.6, 0.65, 0.75, 0.65, length=0.1, lwd=2, col="black")
+
+
+
+#####################
+#Allee Costs and Benefits
+Allee<-S(Q=0.65, B=2, D=D, M=0.5)
+
+#Costs vs Benefits?
+#Utility per capita = benefits-costs, develop benefits as Holling Type II, subtract Allee
+TII<-function(a, x, Tt, b){(Tt*a*x)/(1+(a*b*x))}  
+Tt<-D #seq(0,1,0.01) #time in patch
+x<-1   #resource density at saturation
+a<-6  #discovery rate
+b<-1 #handling time
+YII<-TII(Tt, a, x, b)
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Utility Per Capita", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+#Alee Like Intensive Foraging/Ag
+lines(Allee~D, lwd=3, lty=1, col="black")
+lines(YII+min(Allee)~Tt, lwd=3, lty=1, col="#003263")
+lines(YII+min(Allee)-Allee~D, lwd=3, lty=1, col="red")
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Per Capita Costs & Benefits", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+lines(YII~Tt, lwd=2, lty=1, col="blue")#benefit
+lines(1-rev(YII)-0.13~D, lwd=2, lty=1, col="red")#cost
+legend('topleft', bty="n", lwd=c(2,2), col=c("blue", "red"), legend=c("benefit", "cost"), cex=0.85)
+lines(YII-(1-rev(YII))+0.05~Tt, col="black", lwd=3)#benefit-cost
+legend('topleft', bty="n", lwd=c(2,2,3), col=c("blue", "red", "black"), legend=c("benefit", "cost", "benefit-cost"), cex=0.85)
+
+#add exclusion cost
+D2<-subset(D, D>0.549999); D2<-D2*0.9; D2<-c(subset(D, D<0.55), D2) #adjust D to accelerate sooner
+lines((1-rev(YII)-0.13)~D2, lwd=2, col="red", lty=3)#cost 2
+lines(YII-(1-rev(YII))+0.05~D2, col="black", lwd=3, lty=3)#benefit-cost
+
+segments(0.5, 0.1275, 0.5, .75, col='grey', lty=2)
+points(0.5, 0.1275, pch=21, cex=1.5, bg="black")
+points(0.5, .55, pch=21, cex=1.5, bg="black")
+points(0.5, .75, pch=21, cex=1.5, bg="black")
+
+legend('topright', col=c(NA, "red"), lwd=c(NA, 2), lty=3, legend=c(NA, "with exclusion"), cex=0.85, bty="n")
+
+#abline(v=0.5, lwd=5, col="grey")
+
+############# include settlement costs
+
+#Greene and Stamps 2001 eq2 
+#Suitability (S) can be calculated as:
+#S_i=Q_i-B_i(D_i-M_i)^2-C
+# where, 
+#Q = intrinsic suitability (the effect of habitat type on fitness, independent of effects of conspecifics)
+#B = parameter that standardizes the range of (D-M)
+#D = conspecific density
+#M = specifies the the pop density (D) at which fitness is maximized 
+#C = cost of settlement
+
+#As a function
+Sc<-function(Q, B, D, M, C){(Q-B*(D-M)^2)-C}
+
+#Set density from 0 to 1
+D=seq(0,1,0.001)
+
+#Square plot
+par(pty="s")
+
+#Establish Blank Plot
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Utility Per Capita", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Baseline (Forager)
+Forage<-Sc(Q=0.85, B=1.75, D=D, M=0, C=0)
+lines(Forage~D, lwd=3, col="#D20014")
+Forage<-Sc(Q=0.85, B=1.75, D=D, M=0, C=0.1)
+lines(Forage~D, lwd=3, col="#D20014", lty=3)
+#text(0.3, 0.85, "\"competitive\"", col="black", cex=0.9, font=2)
+
+
+#Costs
+#Establish Blank Plot
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Utility Per Capita", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Alee Effects Intensive Foraging/Ag
+Intense<-Sc(Q=0.65, B=2, D=D, M=0.5, C=0)
+lines(Intense~D, lwd=3, lty=1, col="#003263")
+IntenseC1<-Sc(Q=0.65, B=2, D=seq(0.5,1,0.001), M=0.5, C=0.1)
+lines(IntenseC1~seq(0.5,1,0.001), lwd=3, col="#003263", lty=2)
+IntenseC2<-Sc(Q=0.65, B=2, D=seq(0.5,1,0.001), M=0.5, C=0.3)
+lines(IntenseC2~seq(0.5,1,0.001), lwd=3, col="#003263", lty=3)
+legend('topleft', col="#003263", lwd=3, lty=c(1,2,3), legend=c("without defense", "cost paid by majority", "cost paid by few"), bty="n", cex=0.75)
+#threshold
+points(0.5, max(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+text(0.5, max(approx(Intense)$y), labels="d", pos=3)
+#difference in utility
+segments(0.5, max(approx(Intense)$y), 0.5, max(approx(IntenseC2)$y), lwd=3, lty=1)
+#utility if many pay cost
+points(0.5, max(approx(IntenseC1)$y), pch=21, bg="black", cex=1.5)
+text(0.5, max(approx(IntenseC1)$y), labels=expression(d[c]^1), pos=2)
+#utility if only a few pay cost
+points(0.5, max(approx(IntenseC2)$y), pch=21, bg="black", cex=1.5)
+text(0.5, max(approx(IntenseC2)$y), labels=expression(d[c]^2), pos=2)
+#cost of allowing joiners
+points(approx(D,Intense)$x[40], approx(D,Intense)$y[40], pch=21, bg="black", cex=1.5)
+text(approx(D,Intense)$x[40], approx(D,Intense)$y[40], labels=expression(d+1[c]), pos=4)
+#joiner cost line
+segments(0.5,  approx(D,Intense)$y[40], approx(D,Intense)$x[40], approx(D,Intense)$y[40], lwd=3, col="black")
+
+
+
+
+
+############
+
+
+
+
+
+
+
+
+
+
+
+####################
+#Square plot
+par(pty="s")
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA)
+
+axis(2, at=0.5, label="Energetic Return Rate (E/T)", tick = F, font=2) #Fitness
+axis(2, at=c(0, 1), labels=c("-", "+"))
+
+axis(1, at=0.5, label="Population Density", tick = F, font=2)
+axis(1, at=c(0, 1), labels=c("-", "+"))
+
+#Clip plot so no line goes below x or y
+clip(0,1,0,1)
+
+#Baseline (Forager)
+Forage<-S(Q=0.75, B=1.5, D=D, M=0)
+lines(Forage~D, lwd=3, col="darkblue")
+text(0.8, 0.08, "\"extraction\"", col="black", cex=0.9, font=2)
+#text(0.8, 0.1, "Low Intensity", col="darkgreen", cex=0.9)
+#text(0.8, 0.06, "Foraging", col="darkgreen", cex=0.9)
+#text(.75, .1, "Narrow Diet Breadth", col="darkgreen")
+
+#Alee Effects Intensive Foraging/Ag
+Intense<-S(Q=0.65, B=2, D=D, M=0.5)
+lines(Intense~D, lwd=3, lty=2, col="darkgreen")#red3
+#text(0.95, 0.5, "Intensive", col="darkblue", cex=0.9, xpd=NA)
+#text(0.95, 0.455, "Foraging", col="darkblue", cex=0.9, xpd=NA)
+text(0.95, 0.455, "\"production\"", col="black", cex=0.9, xpd=NA, font=2)
+
+arrows(0.6, 0.15, 0.04, 0.15, length=0.15, lwd=2, col="black")
+
+#Starting Conditions:
+points(0, max(Forage), pch=21, bg="black", cex=1.5)#red3
+text(0, max(Forage), pos=3, "a")
+
+#Switch point
+points(.6325, min(Intense),pch=21, bg="black", cex=1.5)
+text(.6325, min(Intense), pos=4, "b")
+
+#Production Maxima
+points(0.5, max(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+text(0.5, max(approx(Intense)$y), pos=3, "c")
+
+#Production switch
+points(1, min(approx(Intense)$y), pch=21, bg="black", cex=1.5)
+text(1, min(approx(Intense)$y), pos=4, "d", xpd=NA)
+
+
+#export as 6x6
+
+
+
+#Time Series
+#T1
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Fitness", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+"));clip(0,1,0,1); lines(S(Q=0.5, B=1, D=D, M=0)~D, lwd=2, col="darkgreen"); text(.75, .1, "Foraging", col="darkgreen");lines(S(Q=0.75, B=2, D=D, M=0.5)~D, lwd=2, lty=2, col="darkblue"); text(.8, .4, "Intensive", col="darkblue")
+
+points(0, max())
+
+arrows(0.5, 0.23, 0.02, 0.23, length=0.15, lwd=2, col="black")
+
+rect(.4, 0, .56, 1, col=alpha("grey", .25))
+text(.485, 1.01, "Maxima", pos=1, xpd=NA)
+
+#individuals acting in their best interest can produce territorial boundaries (whether or not they are defended)
+
+
+
+
+
+#################################################################
+#Hypothetical: Foraging vs Intensive, vs Farming
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), ylab="Individual Fitness (Per Capita Energy)", xlab="Population Density", font.lab=2)
+
+#Clip plot so no line goes below z
+clip(0,1,0,1)
+
+#Baseline (Forager)
+lines(S(Q=0.5, B=1, D=D, M=0)~D, lwd=2, col="darkgreen")
+text(.75, .1, "Forage", col="darkgreen")
+
+#Alee Effects (Ag)?
+lines(S(Q=0.75, B=2, D=D, M=0.5)~D, lwd=2, lty=2, col="darkblue")
+text(.8, .4, "Intensive", col="darkblue")
+
+#legend
+#legend("topleft",lty=c(1,2), col=c("darkgreen", "darkblue"), lwd=c(2,2), legend = c("Forage", "Farm"), cex=1, bty='n', xpd=NA)
+
+arrows(0.5, 0.23, 0.02, 0.23, length=0.15, lwd=2, col="black")
+
+rect(.4, 0, .56, 1, col=alpha("grey", .25))
+text(.485, 1.01, "Optima", pos=1, xpd=NA)
+
+#individuals acting in their best interest can produce territorial boundaries (whether or not they are defended)
+
+
+#Alee Effects-moderate (acorns or corn?)
+lines(S(Q=0.75, B=.5, D=D, M=0.5)~D, lwd=2, lty=2, col="darkred")
+text(.85, .75, "Farm", col="darkred")
+
+arrows(0.2, 0.6, 0.02, 0.6, length=0.15, lwd=2, col="black")
+
+
+
+#Basic NDD IFD:
+lines(S(Q=1, B=1, D=D, M=0)~D, lwd=2)
+
+#Alee Effects:
+lines(S(Q=1, B=1, D=D, M=0.2)~D, lwd=2, lty=1, col="darkred")
+
+
+
+
+
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), ylab="Suitability", xlab="Population Density")
+
+#Clip plot so no line goes below z
+clip(0,1,0,1)
+
+#Basic NDD IFD:
+lines(S(Q=1, B=1, D=D, M=0)~D, lwd=2)
+
+#Alee Effects:
+lines(S(Q=1, B=1, D=D, M=0.2)~D, lwd=2, lty=1, col="darkred")
+
+
+#Hypothetical: Foraging vs Intensive, vs Farming
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), ylab="Individual Fitness (Per Capita Energy)", xlab="Population Density", font.lab=2)
+
+#Clip plot so no line goes below z
+clip(0,1,0,1)
+
+#Baseline (Forager)
+lines(S(Q=0.5, B=1, D=D, M=0)~D, lwd=2, col="darkgreen")
+text(.75, .1, "Forage", col="darkgreen")
+
+#Alee Effects (Ag)?
+lines(S(Q=0.75, B=2, D=D, M=0.5)~D, lwd=2, lty=2, col="darkblue")
+text(.8, .4, "Intensive", col="darkblue")
+
+#legend
+#legend("topleft",lty=c(1,2), col=c("darkgreen", "darkblue"), lwd=c(2,2), legend = c("Forage", "Farm"), cex=1, bty='n', xpd=NA)
+
+arrows(0.5, 0.23, 0.02, 0.23, length=0.15, lwd=2, col="black")
+
+rect(.4, 0, .56, 1, col=alpha("grey", .25))
+text(.485, 1.01, "Optima", pos=1, xpd=NA)
+
+#individuals acting in their best interest can produce territorial boundaries (whether or not they are defended)
+
+
+#Alee Effects-moderate (acorns or corn?)
+lines(S(Q=0.75, B=.5, D=D, M=0.5)~D, lwd=2, lty=2, col="darkred")
+text(.85, .75, "Farm", col="darkred")
+
+arrows(0.2, 0.6, 0.02, 0.6, length=0.15, lwd=2, col="black")
+
+
+
+
+
+
+
+
+#What about when re-settlement has a cost (C)?
+
+#Greene and Stamps 2001 eq 2:
+Sc<-function(Q, B, D, M, C){(Q-B*(D-M)^2)-C}
+
+lines(Sc(Q=1, B=1, D=D, M=0, C=0.1)~D, type="l", ylab="Suitability", xlab="Population Density", lty=2)
+
+
+#Find y at x use approx()
+
+#We follow Fretwell (1972) and Morris (1987) in assuming that settlement costs vary linearly with density. Hence, for density-incremental settlement costs, C 5 JDset,i, where J is effect of density at the time of arrival on relative fitness, and Dset,i is the density when an individual arrives in i. For density-decremental settlement costs, C 5 J(Dmax 2 Dset,i), where Dmax is the density at saturation for the highest quality patch.
+
+
+
+```
