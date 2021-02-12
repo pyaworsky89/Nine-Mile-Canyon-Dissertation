@@ -79,7 +79,7 @@ plot(BchronCalibrate(ages=c(sort(alldata$uncal_age,decreasing=F)),
 ```{r paleoclim,echo=F}
 ts.df<-read.csv("../timedata.csv")
 ts.df<-ts.df[1:1584,]
-ts.df[is.na(ts.df)] <- 0
+#ts.df[is.na(ts.df)] <- 0
 mean<-ts.df
 mean1<-mean[500:1500,]
 library(RColorBrewer)
@@ -101,6 +101,18 @@ ma7yr<-ma(mean$Reg_mean, n=30) #7 year running average following Benson et al. 2
 
 lines(ma7yr~mean$yearBP, col="black", lwd=2)
 abline(h=mean(mean1$Reg_mean))
+
+
+
+#comparison with the Knight et al 2008 data constructed using Harmon Canyon tree rings. Sample only extends back to 1200AD.
+plot(ts.df$Reg_mean~ts.df$K_TR,ylab="PaleoCar Precipiptation Predictions (mm)",xlab="Knight et al 2008 Tree Ring Standardized Growth Index")
+knight<-lm(Reg_mean~K_TR,data=ts.df)
+summary(knight)
+abline(knight)
+cor(ts.df$Reg_mean,ts.df$K_TR,method="pearson",use="pairwise.complete.obs")
+#High Positive Correlation
+plot(K_TR~yearBP,data=ts.df[1200:nrow(ts.df),], type="p", pch=19, col=pal(nrow(mean1))[mean1$order], lwd=1, ylab="Mean Precip (mm)", xlab="",cex.lab=1.3)
+lines(ma(ts.df$K_TR[1200:nrow(ts.df)],n=30)~ts.df$yearBP[1200:nrow(ts.df)])
 ```
 
 Note: The averaging window size in years for the trend line is specified as `n` in the `ma` function
@@ -162,6 +174,25 @@ alldata$gde<-scale(alldata$gdd)*scale(alldata$elev)
 alldata$probscul<-predict(raman.mod,newdata=data.frame(gdd=alldata$gdd))
 ilink <- family(raman.mod)$linkinv
 alldata$probscul<-ilink(alldata$probscul)
+
+#explaining GDE
+ranger<-range01(alldata$gde)
+par(mfrow=c(1,3))
+plot(alldata$gdd~alldata$elevation,pch=19,xlim=c(4000,7500),ylim=c(2000,4000),xlab="Elevation (ft)",ylab="Growing Degree Days")
+plot(ranger~alldata$elevation,pch=19,xlim=c(4000,7500),xlab="Elevation (ft)",ylab="GES (Suitability)")
+plot(ranger~alldata$gdd,pch=19,xlim=c(2000,4100),ylab="GES (Suitability)", xlab="Growing Degree Days")
+
+#explaining Probs Cul
+par(mfrow=c(1,3))
+plot(raman,pch=19, ylab="Probability of Cultivation",xlab="Growing degree days (GDD)")
+ ilink <- family(raman.mod)$linkinv
+ lines(seq(0,9000,1),ilink(newdata$fit))
+ lines(seq(0,9000,1),ilink(newdata$fit+(2*newdata$se.fit)),lty=2)
+ lines(seq(0,9000,1),ilink(newdata$fit-(2*newdata$se.fit)),lty=2)
+ 
+ plot(alldata$probscul~alldata$gdd,pch=19,xlim=c(2000,4100),ylab="Probability of Cultivation (Suitability)", xlab="Growing Degree Days (GDD)",ylim=c(0.7,0.8))
+  plot(alldata$probscul~alldata$elevation,pch=19,ylab="Probability of Cultivation (Suitability)", xlab="Elevation (ft)",ylim=c(0.7,0.8),xlim=c(4000,7500))
+ 
 ```
 
 - SPD using bins to account for dates at multiple sites and a 100 year averaging window for smoothing.
@@ -542,6 +573,8 @@ for (i in 401:2001){
 }
 
 df$meanGDE<-range01(df$meanGDE)
+
+
 ```
 
 ## Analyses 2
