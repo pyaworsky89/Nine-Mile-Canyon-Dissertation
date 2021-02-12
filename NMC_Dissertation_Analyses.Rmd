@@ -111,8 +111,8 @@ summary(knight)
 abline(knight)
 cor(ts.df$Reg_mean,ts.df$K_TR,method="pearson",use="pairwise.complete.obs")
 #High Positive Correlation
-plot(K_TR~yearBP,data=ts.df[1200:nrow(ts.df),], type="p", pch=19, col=pal(nrow(mean1))[mean1$order], lwd=1, ylab="Mean Precip (mm)", xlab="",cex.lab=1.3)
-lines(ma(ts.df$K_TR[1200:nrow(ts.df)],n=30)~ts.df$yearBP[1200:nrow(ts.df)])
+#plot(K_TR~yearBP,data=ts.df[1200:nrow(ts.df),], type="p", pch=19, col=pal(nrow(mean1))[mean1$order], lwd=1, ylab="Mean Precip (mm)", xlab="",cex.lab=1.3)
+#lines(ma(ts.df$K_TR[1200:nrow(ts.df)],n=30)~ts.df$yearBP[1200:nrow(ts.df)])
 ```
 
 Note: The averaging window size in years for the trend line is specified as `n` in the `ma` function
@@ -219,7 +219,7 @@ df<-data.frame(yearBP=calspd$grid$calBP,
                avgmeanprecip=NA)
 
 mean$avgprecip<-ma7yr
-df<-merge(df,mean[,c(2,6,12)],by="yearBP",all.x=T)
+df<-merge(df,mean[,c(2,6,15)],by="yearBP",all.x=T)
 
 meangde<-data.frame(yearBP=calspd$grid$calBP)
 for (i in 1:nrow(alldata)){
@@ -500,7 +500,7 @@ df<-data.frame(yearBP=calspd1$grid$calBP,
                meanGDE=NA
                )
 
-df<-merge(df,mean[,c(2,6,12)],by="yearBP",all.x=T)
+df<-merge(df,mean[,c(2,6,15)],by="yearBP",all.x=T)
 df$meanGDE<-df2$meanGDE
 
 #################################
