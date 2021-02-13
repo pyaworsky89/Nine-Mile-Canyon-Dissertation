@@ -178,6 +178,7 @@ alldata$probscul<-ilink(alldata$probscul)
 #explaining GDE
 ranger<-range01(alldata$gde)
 par(mfrow=c(1,3))
+par(pty="s")
 plot(alldata$gdd~alldata$elevation,pch=19,xlim=c(4000,7500),ylim=c(2000,4000),xlab="Elevation (ft)",ylab="Growing Degree Days")
 plot(ranger~alldata$elevation,pch=19,xlim=c(4000,7500),xlab="Elevation (ft)",ylab="GES (Suitability)")
 plot(ranger~alldata$gdd,pch=19,xlim=c(2000,4100),ylab="GES (Suitability)", xlab="Growing Degree Days")
