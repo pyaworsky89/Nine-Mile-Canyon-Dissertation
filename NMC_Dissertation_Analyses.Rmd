@@ -377,8 +377,8 @@ summary(mod1$gam)
 
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 
-plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=2,seWithMean=TRUE,ylab="Mean GDE");box()
-plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,ylab="Mean GDE");box()
+plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=2,seWithMean=TRUE,ylab="Mean GES");box()
+plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,ylab="Mean GES");box()
 
 #diagnostics
 #residuals
