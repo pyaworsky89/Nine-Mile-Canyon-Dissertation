@@ -227,7 +227,8 @@ for (i in 1:nrow(alldata)){
   #meangde[,1+i]<-paste("gde",i,sep="")
   dates<-calibrate(x=alldata$uncal_age[i],errors=alldata$uncal_err[i],calCurves='intcal20',verbose=F)
   
-  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$gde[i]*dates$grids$"1"$PrDens) 
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$gde[i])
+                #*dates$grids$"1"$PrDens) 
   meangde<-merge(meangde,x,by="yearBP",all=T)
   
   #above i multiply the probability of the density function by gde as a weight of how likely that year is.
@@ -261,7 +262,8 @@ for (i in 1:nrow(alldata)){
   #meangde[,1+i]<-paste("gde",i,sep="")
   dates<-calibrate(x=alldata$uncal_age[i],errors=alldata$uncal_err[i],calCurves='intcal20',verbose=F)
   
-  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$elevation[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$elevation[i])
+                #*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
   elev<-merge(elev,x,by="yearBP",all=T)
   
 }
@@ -291,7 +293,8 @@ for (i in 1:nrow(alldata)){
   #meangde[,1+i]<-paste("gde",i,sep="")
   dates<-calibrate(x=alldata$uncal_age[i],errors=alldata$uncal_err[i],calCurves='intcal20',verbose=F)
   
-  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$gdd[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=alldata$gdd[i])
+                #*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
   gdd<-merge(gdd,x,by="yearBP",all=T)
   
 }
@@ -371,7 +374,7 @@ plot(spd~yearBP,df,col=df$aors+1,pch=19)
 
 ###########Mean GDE
 #gamm
-mod1<-gamm(meanGDE~s(avgprecip,k=2)+s(spd,k=3)+aors,data=df,correlation=corAR1())
+mod1<-gamm(meanGDE~s(avgprecip,k=2)+s(spd)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 
 
@@ -379,6 +382,7 @@ acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 
 plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=2,seWithMean=TRUE,ylab="Mean GES");box()
 plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,ylab="Mean GES");box()
+
 
 #diagnostics
 #residuals
@@ -517,7 +521,8 @@ for (i in 1:nrow(stors)){
  
   dates<-calibrate(x=stors$uncal_age[i],errors=stors$uncal_err[i],calCurves='intcal20',verbose=F)
   
-  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=1*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=1)
+                #*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
   stornum<-merge(stornum,x,by="yearBP",all=T)
   
 }
@@ -538,7 +543,8 @@ for (i in 1:nrow(stors)){
  
   dates<-calibrate(x=stors$uncal_age[i],errors=stors$uncal_err[i],calCurves='intcal20',verbose=F)
   
-  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=stors$VS_fp[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=stors$VS_fp[i])
+                #*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
   VS<-merge(VS,x,by="yearBP",all=T)
   
 }
@@ -559,7 +565,8 @@ for (i in 1:nrow(stors)){
  
   dates<-calibrate(x=stors$uncal_age[i],errors=stors$uncal_err[i],calCurves='intcal20',verbose=F)
   
-  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=stors$elvbvFP[i]*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=stors$elvbvFP[i])
+                #*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
   elevfp<-merge(elevfp,x,by="yearBP",all=T)
   
 }
@@ -609,7 +616,7 @@ acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=3,shade=T,ylab="Num Stor",xlab="GDE",ylim=c(0,0.05),shift=coef(mod1$gam)[1]);box()
+plot(mod1$gam,select=2,shade=T,ylab="Num Stor",xlab="SPD",shift=coef(mod1$gam)[1]);box()
 
 ###
 hist(residuals(mod1$lme, 
@@ -633,13 +640,13 @@ k.check(mod1$gam)
 #acf(resid(mod1),lag.max=1000)
 
 #gamm
-mod1<-gamm(VS~s(avgprecip)+s(spd)+s(meanGDE),data=df,correlation=corAR1())
+mod1<-gamm(VS~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=3,shade=T,ylab="Viewshed of Floodplain",xlab="GDE",shift= coef(mod1$gam)[1],ylim=c(0,30));box() #this plot is close but not exact
+plot(mod1$gam,select=2,shade=T,ylab="Viewshed of Floodplain",xlab="SPD",shift= coef(mod1$gam)[1]);box() #this plot is close but not exact
 ###
 hist(residuals(mod1$lme, 
               type="normalized"),
@@ -663,13 +670,13 @@ k.check(mod1$gam)
 #acf(resid(mod1),lag.max=1000)
 
 #gamm
-mod1<-gamm(elevfp~s(avgprecip)+s(spd,k=5)+s(meanGDE),data=df,correlation=corAR1())
+mod1<-gamm(elevfp~s(avgprecip)+s(spd,k=3)+s(meanGDE),data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Elev Above FP",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Elev Above FP",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=3,shade=T,ylab="Elevation above Floodplain",xlab="GDE",shift= coef(mod1$gam)[1],ylim=c(0,0.45));box() #this plot is close but not exact...
+plot(mod1$gam,select=2,shade=T,ylab="Elevation above Floodplain",xlab="SPD",shift= coef(mod1$gam)[1]);box() #this plot is close but not exact...
 
 
 ###
