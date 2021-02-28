@@ -385,6 +385,11 @@ plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,yl
 
 
 #diagnostics
+#deviance explained
+mod0<-gam(meanGDE~1,data=df)
+ DN <- sum(residuals(mod0, type = "pearson")^2) # Deviance from NULL GAMM
+ DR <- sum(residuals(mod1$gam, type = "pearson")^2) # Deviance from our GAMM
+ DE <- (DN-DR)*100/DN; DE # Deviance Explained from our GAMM model
 #residuals
 summary(residuals(mod1$lme,type="normalized"))
 
@@ -397,6 +402,7 @@ k.check(mod1$gam)
 
 ###################PC
 ##gammmm
+
 mod1<-gamm(meanprobscul~s(spd)+s(avgprecip)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 acf(resid(mod1$lme,type="normalized"),lag.max=1000)
@@ -406,6 +412,11 @@ plot(mod1$gam,select=1,shade=T,ylab="Probs Cul",xlab="SPD",shift= coef(mod1$gam)
 plot(mod1$gam,select=2,shade=T,ylab="Probs Cul",xlab="Avg Precip",shift= coef(mod1$gam)[1])
 
 #diagnostics
+#deviance explained
+mod0<-gam(meanprobscul~1,data=df)
+ DN <- sum(residuals(mod0, type = "pearson")^2) # Deviance from NULL GAMM
+ DR <- sum(residuals(mod1$gam, type = "pearson")^2) # Deviance from our GAMM
+ DE <- (DN-DR)*100/DN; DE # Deviance Explained from our GAMM model
 #residuals
 summary(residuals(mod1$lme,type="normalized"))
 
@@ -619,9 +630,16 @@ acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,ylab="Num Stor",xlab="SPD",shift=coef(mod1$gam)[1]);box()
+plot(mod1$gam,select=2,shade=T,ylab="Num Stor",xlab="SPD",shift=coef(mod1$gam)[1],residuals=T);box()
 
 ###
+#deviance explained
+mod0<-gam(numstor~1,data=df)
+ DN <- sum(residuals(mod0, type = "pearson")^2) # Deviance from NULL GAMM
+ DR <- sum(residuals(mod1$gam, type = "pearson")^2) # Deviance from our GAMM
+ DE <- (DN-DR)*100/DN; DE # Deviance Explained from our GAMM model
+#residuals
+ 
 hist(residuals(mod1$lme, 
               type="normalized"),
     main=NA,
@@ -651,6 +669,12 @@ acf(resid(mod1$lme,type="normalized"),lag.max=1000)
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
 plot(mod1$gam,select=2,shade=T,ylab="Viewshed of Floodplain",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T);box() #this plot is close but not exact
 ###
+#deviance explained
+mod0<-gam(VS~1,data=df)
+ DN <- sum(residuals(mod0, type = "pearson")^2) # Deviance from NULL GAMM
+ DR <- sum(residuals(mod1$gam, type = "pearson")^2) # Deviance from our GAMM
+ DE <- (DN-DR)*100/DN; DE # Deviance Explained from our GAMM model
+#residuals
 hist(residuals(mod1$lme, 
               type="normalized"),
     main=NA,
@@ -683,6 +707,12 @@ plot(mod1$gam,select=2,shade=T,ylab="Elevation above Floodplain",xlab="SPD",shif
 
 
 ###
+#deviance explained
+mod0<-gam(elevfp~1,data=df)
+ DN <- sum(residuals(mod0, type = "pearson")^2) # Deviance from NULL GAMM
+ DR <- sum(residuals(mod1$gam, type = "pearson")^2) # Deviance from our GAMM
+ DE <- (DN-DR)*100/DN; DE # Deviance Explained from our GAMM model
+#residuals
 hist(residuals(mod1$lme, 
               type="normalized"),
     main=NA,
