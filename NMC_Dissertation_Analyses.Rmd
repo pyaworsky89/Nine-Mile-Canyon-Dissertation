@@ -64,7 +64,7 @@ To test this I use:
 
 - 158 radiocarbon dates from across the West Tavaputs plateau. Sites older than 2ky BP are not used.
 
-```{r datas,echo=F}
+```{r datas}
 alldata<-read.csv("../ALL_NMC_dates.csv")
 #dates<-alldata[is.na(alldata$type)==F,]
 #
@@ -76,7 +76,7 @@ plot(BchronCalibrate(ages=c(sort(alldata$uncal_age,decreasing=F)),
 
 - A paleoclimatic reconstruction of the West Tavaputs Plateau
 
-```{r paleoclim,echo=F}
+```{r paleoclim}
 ts.df<-read.csv("../timedata.csv")
 ts.df<-ts.df[1:1584,]
 #ts.df[is.na(ts.df)] <- 0
@@ -508,6 +508,8 @@ notstors<-alldata[is.na(alldata$type)==T,]
 caldates1<-calibrate(x=notstors$uncal_age,errors=notstors$uncal_err,calCurves='intcal20',verbose=F)
 DK.bins1 = binPrep(sites=notstors$site,ages=notstors$uncal_age,h=100)
 calspd1=spd(caldates1,bins=DK.bins1,timeRange = c(2000,400),runm=100,verbose=F)
+
+plot(calspd1)
 
 #df with yearBP,spd.y (stors excluded),mean precip, mean numstor, mean vs, mean elevation above fp 
 df1<-df
