@@ -15,7 +15,7 @@ library(scales)
 
 ```{r model}
 
-png("WeitzelCodding_IDMRev_Fig1.png", height=3, width=8, units="in", res=600)
+#png("WeitzelCodding_IDMRev_Fig1.png", height=3, width=8, units="in", res=600)
 
 #IFD
 
@@ -163,7 +163,7 @@ legend("topright", col=viridis(6)[c(2,2,2,3)], lwd=2, lty=c(1,2,3,1), bty="n", l
 
 
 
-dev.off()
+#dev.off()
 
 
 ```
@@ -531,6 +531,85 @@ lines(Sc(Q=1, B=1, D=D, M=0, C=0.1)~D, type="l", ylab="Suitability", xlab="Popul
 #Find y at x use approx()
 
 #We follow Fretwell (1972) and Morris (1987) in assuming that settlement costs vary linearly with density. Hence, for density-incremental settlement costs, C 5 JDset,i, where J is effect of density at the time of arrival on relative fitness, and Dset,i is the density when an individual arrives in i. For density-decremental settlement costs, C 5 J(Dmax 2 Dset,i), where Dmax is the density at saturation for the highest quality patch.
+
+
+
+#png("WeitzelCodding_IDMRev_Fig1.png", height=3, width=8, units="in", res=600)
+
+
+
+#############Peter SAA plot
+#IFD
+
+#Greene and Stamps 2001 eq1 
+#Suitability (S) can be calculated as:
+#S_i=Q_i-B_i(D_i-M_i)^2
+# where, 
+#Q = intrinsic suitability (the effect of habitat type on fitness, independent of effects of conspecifics)
+#B = parameter that standardizes the range of (D-M)
+#D = conspecific density
+#M = specifies the the pop density (D) at which fitness is maximized 
+
+#As a function
+
+
+#Set density from 0 to 1
+par(mfrow=c(1,2))
+S<-function(Q, B, D, M){Q-B*(D-M)^2}
+
+#Set density from 0 to 1
+D=seq(0,1,0.001)
+
+#Square plot
+par(pty="s", mfrow=c(1,2))
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Probability of Success", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Population Density", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1
+Hab1<-S(Q=0.85, B=1.75, D=D, M=0)
+lines(Hab1~D, lwd=2, col=viridis(6)[2])
+
+
+#As a function
+
+
+#Set density from 0 to 1
+c=seq(0,1,0.0001)
+
+p<-sqrt(c)-0.25*c^2
+
+#Square plot
+
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Probability of Success", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Investment in Storage", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1
+Hab1<-p
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+#text(0.3, 0.85, "\"NDD\"", col="black", cex=0.9, font=2)
+
+
+
+
+#Set density from 0 to 1
+par(mfrow=c(1,1))
+Variance<-seq(0,1,0.0001)
+
+#Set density from 0 to 1
+D=seq(0,1,0.0001)
+
+df<-data.frame(v=Variance,d=rev(D))
+#Square plot
+par(pty="s", mfrow=c(1,2))
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Variance", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Storage Investment", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1
+Hab1<-S(Q=0.85, B=1.75, D=D, M=0)
+lines(df$v~df$d, lwd=2, col=viridis(6)[2])
 
 
 

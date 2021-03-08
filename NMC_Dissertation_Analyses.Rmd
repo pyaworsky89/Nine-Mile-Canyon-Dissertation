@@ -378,7 +378,7 @@ mod1<-gamm(meanGDE~s(avgprecip,k=2)+s(spd)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 
 
-acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+acf(resid(mod1$lme,type="normalized"))
 
 plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=2,seWithMean=TRUE,ylab="Mean GES");box()
 plot(mod1$gam,shift=mod1$gam$coefficients[1],shade=T,select=1,seWithMean=TRUE,ylab="Mean GES");box()
@@ -405,10 +405,10 @@ k.check(mod1$gam)
 
 mod1<-gamm(meanprobscul~s(spd)+s(avgprecip)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
-acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+acf(resid(mod1$lme,type="normalized"))
 
 
-plot(mod1$gam,select=1,shade=T,ylab="Probs Cul",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T)
+plot(mod1$gam,select=1,shade=T,ylab="Probs Cul",xlab="SPD",shift= coef(mod1$gam)[1])
 plot(mod1$gam,select=2,shade=T,ylab="Probs Cul",xlab="Avg Precip",shift= coef(mod1$gam)[1])
 
 #diagnostics
@@ -628,7 +628,7 @@ df<-df[201:nrow(df),]
 mod1<-gamm(numstor~s(avgprecip)+s(spd)+s(meanprobscul)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
-acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+acf(resid(mod1$lme,type="normalized"))
 
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
@@ -666,7 +666,7 @@ k.check(mod1$gam)
 mod1<-gamm(VS~s(avgprecip)+s(spd)+s(meanprobscul)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
-acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+acf(resid(mod1$lme,type="normalized"))
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
 plot(mod1$gam,select=2,shade=T,ylab="Viewshed of Floodplain",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T);box() #this plot is close but not exact
@@ -702,7 +702,7 @@ k.check(mod1$gam)
 mod1<-gamm(elevfp~s(avgprecip)+s(spd)+s(meanprobscul)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
-acf(resid(mod1$lme,type="normalized"),lag.max=1000)
+acf(resid(mod1$lme,type="normalized"))
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Elev Above FP",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Elev Above FP",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
 plot(mod1$gam,select=2,shade=T,ylab="Elevation above Floodplain",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T);box() #this plot is close but not exact...
