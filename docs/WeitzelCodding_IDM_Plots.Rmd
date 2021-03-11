@@ -613,4 +613,190 @@ lines(df$v~df$d, lwd=2, col=viridis(6)[2])
 
 
 
+
+
+
+
+
+
+
+#Set density from 0 to 1
+c=seq(0,1,0.0001)
+
+p<-sqrt(c)-0.25*c^2
+
+#Square plot
+
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Probability of Success", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Investment in Storage", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1
+Hab1<-p
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+
+y<-seq(0,1,0.0001)
+c=seq(0,1,0.0001)
+
+p<-sqrt(c)-0.25*c^2
+
+#Square plot
+
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="p*(y/c)", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="c", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1 probs of success * RR
+Hab1<-(p)*(y)
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+
+
+#expected return rate based on storage investment that are driven by marginal gains in p
+#yea, so if your yield is 1 and you invest 1 in storage your p is 1
+
+
+Hab1<-p/2*((y/2)/c)
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+
+
+
+
+
+y<-sqrt(c)-0.25*c^2
+c=seq(0,1,0.0001)
+
+p<-sqrt(c)-0.25*c^2
+
+#Square plot
+
+
+#Plot baseline:
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="p*(y/c)", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="c", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1 probs of success * RR
+Hab1<-(p)*(y)
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+
+
+#expected return rate based on storage investment that are driven by marginal gains in p
+#yea, so if your yield is 1 and you invest 1 in storage your p is 1
+
+
+Hab1<-((p)*(y))/2
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+#so we expect more investment in storage when  the expected return rate of the farmer is maximized.
+
+#at a p of 1 they get all their food
+
+
+
+
+
+
+y<-sqrt(c)-0.25*c^2
+c=seq(0,1,0.0001)
+
+p<-sqrt(c)-0.25*c^2
+
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="p", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="c", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1 probs of success * RR
+Hab1<-(p)
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+
+
+#expected return rate based on storage investment that are driven by marginal gains in p
+#yea, so if your yield is 1 and you invest 1 in storage your p is 1
+
+
+Hab1<-((p)*(y))/2
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+
+
+
+
+
+##### increases in c results in marginal increases in p
+
+par(mfrow=c(1,2))
+
+y<-sqrt(c)-0.25*c^2
+c=seq(0,1,0.0001)
+
+p<-sqrt(c)-0.25*c^2
+
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="p", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="c", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1 probs of success * RR
+Hab1<-(p)
+lines(Hab1~c, lwd=2, col=viridis(6)[2])
+
+
+
+##### at higher return rates, p is high. as rr decline, p declines and at some point there is a benefit to inflating p with additional investments in c
+
+
+y<-sqrt(c)-0.25*c^2
+
+
+c=seq(0,1,0.0001)
+
+p<-sqrt(c)-0.25*c^2
+
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="Expected Utility", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="Probability of Success", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1 probs of success * RR
+Hab1<-(y)
+lines(Hab1~p, lwd=2, col=viridis(6)[2])
+
+
+
+##########################################blake way
+
+##### at higher return rates, p is high. as rr decline, p declines and at some point there is a benefit to inflating p with additional investments in c
+
+
+
+p<-seq(0,1,0.0001)
+
+t=rep(2,length(p))
+y<-rep(100,length(p))
+
+c=c^2
+plot(c,p)
+
+plot((y/(t+c))~c)
+lines(p*(y/(t+c))~c)
+
+
+
+
+
+
+par(mfrow=c(1,2))
+par(pty="s")
+c=seq(0,10,0.001)
+t=rep(20,length(c))
+y<-rep(100,length(c))
+p<-(1-exp(-c))
+
+plot(c,p)
+
+plot((y/(t+c))~c,ylim=c(0,5))
+lines(p*(y/(t+c))~c)
+
+plot(NA, frame.plot=F, ylim=c(0,1), xlim=c(0,1), xaxt="n", yaxt="n", xlab=NA, ylab=NA); axis(2, at=0.5, label="RR", tick = F, font=2); axis(2, at=c(0, 1), labels=c("-", "+")); axis(1, at=0.5, label="p", tick = F, font=2); axis(1, at=c(0, 1), labels=c("-", "+")); clip(0,1,0,1)#Clip plot so no line goes below x or y
+
+#Hab 1 probs of success * RR
+Hab1<-(y/c)
+lines(Hab1~p, lwd=2, col=viridis(6)[2])
+
+
 ```

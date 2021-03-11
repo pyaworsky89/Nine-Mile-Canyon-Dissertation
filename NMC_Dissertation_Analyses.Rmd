@@ -68,10 +68,10 @@ To test this I use:
 alldata<-read.csv("../ALL_NMC_dates.csv")
 #dates<-alldata[is.na(alldata$type)==F,]
 #
-plot(BchronCalibrate(ages=c(sort(alldata$uncal_age,decreasing=F)),
-                       ageSds=c(alldata$uncal_err),
-                       positions=seq(0,15700,100),
-                       calCurves=rep('intcal20',nrow(alldata))),withPositions=T)
+plot(BchronCalibrate(ages=c(sort(alldata$uncal_age,decreasing=F)[20:153]),
+                       ageSds=c(alldata$uncal_err[20:153]),
+                       positions=seq(0,10640,80),
+                       calCurves=rep('intcal20',nrow(alldata[20:153,]))),withPositions=T)
 ```
 
 - A paleoclimatic reconstruction of the West Tavaputs Plateau
@@ -234,12 +234,14 @@ for (i in 1:nrow(alldata)){
   #above i multiply the probability of the density function by gde as a weight of how likely that year is.
 }
 
-for (i in 401:2001){
-  test<-meangde[i,]
-  test<-t(test)
-  test<-test[-1,]
-  df$meanGDE[i-400]<-mean(na.omit(test))
-  df$medGDE[i-400]<-median(test,na.rm=T)
+
+for (i in 1:nrow(meangde)){
+ test<-meangde[i,]
+ test<-t(test)
+ year<-test[1,]
+ test<-test[-1,]
+ meany<-mean(na.omit(test))
+ df[df$yearBP==year,3]<-meany # 3 because crit is the 3rd column in the df
 }
 
 df<-df[,-c(4,5)]
@@ -268,15 +270,6 @@ for (i in 1:nrow(alldata)){
   
 }
 
-#putting this into the main df, df
-for (i in 401:2001){
-  test<-elev[i,]
-  test<-t(test)
-  test<-test[-1,]
-  df$meanelev[i-400]<-mean(na.omit(test))
-  df$medelev[i-400]<-median(na.omit(test))
-  
-}
 
 ########################################################################
 ########GDD########
@@ -314,7 +307,7 @@ for (i in 401:2001){
 ###########################################
 ###########################################
 df$meanprobscul<-NA
-df$medprobscul<-NA
+
 #selecting out only the stor sites
 #stors<-alldata[is.na(alldata$type)==F,]
 
@@ -329,15 +322,18 @@ for (i in 1:nrow(alldata)){
   
 }
 
-#putting this into the main df, df
-for (i in 401:2001){
-  test<-probscul[i,]
-  test<-t(test)
-  test<-test[-1,]
-  df$meanprobscul[i-400]<-mean(na.omit(test))
-  df$medprobscul[i-400]<-median(na.omit(test))
-  
+
+
+for (i in 1:nrow(probscul)){
+ test<-probscul[i,]
+ test<-t(test)
+ year<-test[1,]
+ test<-test[-1,]
+ meany<-mean(na.omit(test))
+ df[df$yearBP==year,10]<-meany # 3 because crit is the 3rd column in the df
 }
+
+
 ```
 
 I try two models for each suitability proxy, a standard GAM and then an autoregressive GAM in attempt to control for temporal autocorrelation within the data.
@@ -534,20 +530,23 @@ for (i in 1:nrow(stors)){
  
   dates<-calibrate(x=stors$uncal_age[i],errors=stors$uncal_err[i],calCurves='intcal20',verbose=F)
   
-  x<-data.frame(yearBP=dates$grids$'1'$calBP,gde=1)
+  x<-data.frame(yearBP=dates$grids$'1'$calBP,stornum=1)
                 #*dates$grids$"1"$PrDens) #1 times the prob density in an attempt to weight that number of storage features
   stornum<-merge(stornum,x,by="yearBP",all=T)
   
 }
 
-#putting this into the main df, df
-for (i in 401:2001){
-  test<-stornum[i,]
-  test<-t(test)
-  test<-test[-1,]
-  df$numstor[i-400]<-sum(na.omit(test))
-  
+
+
+for (i in 1:nrow(stornum)){
+ test<-stornum[i,]
+ test<-t(test)
+ year<-test[1,]
+ test<-test[-1,]
+ meany<-sum(na.omit(test))
+ df[df$yearBP==year,6]<-meany # 3 because crit is the 3rd column in the df
 }
+
 
 ###okay, now we have num stor
 #now for VS
@@ -562,13 +561,14 @@ for (i in 1:nrow(stors)){
   
 }
 
-#putting this into the main df, df
-for (i in 401:2001){
-  test<-VS[i,]
-  test<-t(test)
-  test<-test[-1,]
-  df$VS[i-400]<-mean(na.omit(test))
-  
+df$VS<-NA
+for (i in 1:nrow(VS)){
+ test<-VS[i,]
+ test<-t(test)
+ year<-test[1,]
+ test<-test[-1,]
+ meany<-mean(na.omit(test))
+ df[df$yearBP==year,7]<-meany # 3 because crit is the 3rd column in the df
 }
 
 
@@ -584,18 +584,22 @@ for (i in 1:nrow(stors)){
   
 }
 
-#putting this into the main df, df
-for (i in 401:2001){
-  test<-elevfp[i,]
-  test<-t(test)
-  test<-test[-1,]
-  df$elevfp[i-400]<-mean(na.omit(test))
-  
+df$elevfp<-NA
+for (i in 1:nrow(elevfp)){
+ test<-elevfp[i,]
+ test<-t(test)
+ year<-test[1,]
+ test<-test[-1,]
+ meany<-mean(na.omit(test))
+ df[df$yearBP==year,8]<-meany # 3 because crit is the 3rd column in the df
 }
 
-df$meanprobscul<-range01(df$meanprobscul)
+#df$meanprobscul<-range01(df$meanprobscul)
 
-
+plot(BchronCalibrate(ages=c(sort(stors$uncal_age,decreasing=F)),
+                       ageSds=c(stors$uncal_err),
+                       positions=seq(0,2300,100),
+                       calCurves=rep('intcal20',nrow(stors))),withPositions=T)
 ```
 
 ## Analyses 2
@@ -609,7 +613,7 @@ Last we look at mean elevation above the floodplain of in use storage features.
 
 ```{r storresults,message=F,verbose=F}
 par(pty="s")
-#par(mfrow=c(1,1))
+par(mfrow=c(1,3))
 ###############################
 #Number of stors
 #mod1<-gam(numstor~s(avgprecip)+s(spd,k=2)+s(meanGDE),data=df)
@@ -625,14 +629,16 @@ df$aors[1:451]<-0
 df<-df[201:nrow(df),]
 
 #gamm
-mod1<-gamm(numstor~s(avgprecip)+s(spd)+s(meanprobscul)+aors,data=df,correlation=corAR1())
+mod1<-gamm(numstor~s(avgprecip)+s(spd)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"))
 
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Num Stor",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Num Stor",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,ylab="Num Stor",xlab="SPD",shift=coef(mod1$gam)[1],residuals=T);box()
+plot(mod1$gam,select=2,shade=T,ylab="Num Stor",xlab="SPD",shift=coef(mod1$gam)[1]);box()
+
+plot(mod1$gam,select=1,shade=T,ylab="Num Stor",xlab="Precip",shift=coef(mod1$gam)[1]);box()
 
 ###
 #deviance explained
@@ -661,15 +667,19 @@ k.check(mod1$gam)
 #summary(mod1)
 #hist(residuals(mod1))
 #acf(resid(mod1),lag.max=1000)
-
+par(pty="s")
+par(mfrow=c(1,3))
 #gamm
-mod1<-gamm(VS~s(avgprecip)+s(spd)+s(meanprobscul)+aors,data=df,correlation=corAR1())
+mod1<-gamm(VS~s(avgprecip)+s(spd)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"))
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,ylab="Viewshed of Floodplain",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T);box() #this plot is close but not exact
+plot(mod1$gam,select=2,shade=T,ylab="Viewshed of Floodplain",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T);box() 
+
+plot(mod1$gam,select=1,shade=T,ylab="Viewshed of Floodplain",xlab="Precip",shift= coef(mod1$gam)[1],residuals=T,ylim=c(0,4000));box() 
+#,ylim=c(0,4000)
 ###
 #deviance explained
 mod0<-gam(VS~1,data=df)
@@ -697,15 +707,17 @@ k.check(mod1$gam)
 #summary(mod1)
 #hist(residuals(mod1))
 #acf(resid(mod1),lag.max=1000)
-
+par(pty="s")
+par(mfrow=c(1,3))
 #gamm
-mod1<-gamm(elevfp~s(avgprecip)+s(spd)+s(meanprobscul)+aors,data=df,correlation=corAR1())
+mod1<-gamm(elevfp~s(avgprecip)+s(spd)+aors,data=df,correlation=corAR1())
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"))
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="Elev Above FP",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="Elev Above FP",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,ylab="Elevation above Floodplain",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T);box() #this plot is close but not exact...
+plot(mod1$gam,select=2,shade=T,ylab="Elevation above Floodplain",xlab="SPD",shift= coef(mod1$gam)[1]);box() #this plot is close but not exact...
+plot(mod1$gam,select=1,shade=T,ylab="Elevation above Floodplain",xlab="Precip",shift= coef(mod1$gam)[1]);box() #this plot 
 
 
 ###
@@ -776,8 +788,8 @@ hist(resid(mod1$gam))
 mod1<-gam(spd~s(meangdd,k=2)+s(meanelev,k=5)+s(avgprecip),data=df,family="binomial")
 summary(mod1)
 ilink <- family(mod1)$linkinv
-plot(mod1,select=1,shade=T,residuals=T,ylab="SPD",xlab="Mean GDD",shift=ilink(coef(mod1)[1]))
-plot(mod1,select=2,shade=T,residuals=T,ylab="SPD",xlab="Mean Elev",shift=ilink(coef(mod1)[1]))
+plot(mod1,select=1,shade=T,ylab="SPD",xlab="Mean GDD",shift=ilink(coef(mod1)[1]))
+plot(mod1,select=2,shade=T,ylab="SPD",xlab="Mean Elev",shift=ilink(coef(mod1)[1]))
 #plot(mod1,select=3,shade=T,residuals=T,ylab="SPD",xlab="Average Precip")
 acf(resid(mod1),lag.max=1000)
 
@@ -788,8 +800,8 @@ acf(resid(mod1),lag.max=1000)
 mod1<-gamm(spd~s(meangdd)+s(meanelev)+s(avgprecip),data=df,correlation=corAR1())
 summary(mod1$gam)
 
-plot(mod1$gam,select=1,shade=T,residuals=T,ylab="SPD",xlab="Mean GDD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,residuals=T,ylab="SPD",xlab="Mean Elev",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=1,shade=T,ylab="SPD",xlab="Mean GDD",shift= ilink(coef(mod1$gam)[1]))
+plot(mod1$gam,select=2,shade=T,ylab="SPD",xlab="Mean Elev",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1,select=3,shade=T,residuals=T,ylab="SPD",xlab="Average Precip")
 acf(resid(mod1$lme),lag.max=1000)
 
