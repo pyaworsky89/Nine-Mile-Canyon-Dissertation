@@ -56,7 +56,7 @@ I predict that mean habitat suitability will decline as SPD increases.
 
 I predict that mean habitat suitability will decline as average precipitation increases. 
 
-I predict that risk averse behaviors during high precip times will result in an increasing number of storage features as average precipitation increases, while controling for population using the SPD.
+I predict that risk averse behaviors during high precip times will result in an increasing number of storage features as average precipitation increases, while controlling for population using the SPD.
 
 ## Data
 
@@ -72,6 +72,7 @@ plot(BchronCalibrate(ages=c(sort(alldata$uncal_age,decreasing=F)[20:153]),
                        ageSds=c(alldata$uncal_err[20:153]),
                        positions=seq(0,10640,80),
                        calCurves=rep('intcal20',nrow(alldata[20:153,]))),withPositions=T)
+
 ```
 
 - A paleoclimatic reconstruction of the West Tavaputs Plateau
@@ -194,11 +195,19 @@ plot(raman,pch=19, ylab="Probability of Cultivation",xlab="Growing degree days (
  plot(alldata$probscul~alldata$gdd,pch=19,xlim=c(2000,4100),ylab="Probability of Cultivation (Suitability)", xlab="Growing Degree Days (GDD)",ylim=c(0.7,0.8))
   plot(alldata$probscul~alldata$elevation,pch=19,ylab="Probability of Cultivation (Suitability)", xlab="Elevation (ft)",ylim=c(0.7,0.8),xlim=c(4000,7500))
  
+#projecting the raman.mod across GDD for the state to visualize the suitability raster.  
+#names(gdd)
+#pc<-raster::predict(object=gdd,model=raman.mod,type="response")
 ```
 
 - SPD using bins to account for dates at multiple sites and a 100 year averaging window for smoothing.
 
 ```{r caldates,message=F}
+par(pty="s") 
+##corn dates
+corn<-alldata[alldata$samp_mat=="Zea Mays",]
+hist(corn$uncal_age,breaks=10,main="Histogram of Maize Dates (n=48)", xlab= "Uncalibrated Age (BP)")
+
 caldates<-calibrate(x=alldata$uncal_age,errors=alldata$uncal_err,calCurves='intcal20',verbose=F)
 
 #with bins
@@ -640,6 +649,13 @@ plot(mod1$gam,select=2,shade=T,ylab="Num Stor",xlab="SPD",shift=coef(mod1$gam)[1
 
 plot(mod1$gam,select=1,shade=T,ylab="Num Stor",xlab="Precip",shift=coef(mod1$gam)[1]);box()
 
+df$normstor<-df$numstor/(df$spd*100)
+mod2<-gamm(normstor~s(avgprecip)+s(meanprobscul,k=2)+aors,correlation=corAR1(),data=df[c(TRUE, rep(FALSE, 9)),])#
+summary(mod2$gam)
+acf(resid(mod2$lme,type="normalized"))
+plot(mod2$gam,select=2,shade=T,ylab="Normalized Num Stor",xlab="Mean Probs Cul",shift=coef(mod2$gam)[1], residuals=T);box()
+
+plot(mod2$gam,select=1,shade=T,ylab="Normalized Num Stor",xlab="Precip",shift=coef(mod2$gam)[1],residuals=T);box()
 ###
 #deviance explained
 mod0<-gam(numstor~1,data=df)
@@ -676,9 +692,9 @@ summary(mod1$gam)
 acf(resid(mod1$lme,type="normalized"))
 #plot(mod1$gam,select=1,shade=T,residuals=T,ylab="VS",xlab="Average Precip",shift= ilink(coef(mod1$gam)[1]))
 #plot(mod1$gam,select=2,shade=T,residuals=T,ylab="vS",xlab="SPD",shift= ilink(coef(mod1$gam)[1]))
-plot(mod1$gam,select=2,shade=T,ylab="Viewshed of Floodplain",xlab="SPD",shift= coef(mod1$gam)[1],residuals=T);box() 
+plot(mod1$gam,select=2,shade=T,ylab="Viewshed of Floodplain",xlab="SPD",shift= coef(mod1$gam)[1]);box() 
 
-plot(mod1$gam,select=1,shade=T,ylab="Viewshed of Floodplain",xlab="Precip",shift= coef(mod1$gam)[1],residuals=T,ylim=c(0,4000));box() 
+plot(mod1$gam,select=1,shade=T,ylab="Viewshed of Floodplain",xlab="Precip",shift= coef(mod1$gam)[1],ylim=c(0,4000));box() 
 #,ylim=c(0,4000)
 ###
 #deviance explained
