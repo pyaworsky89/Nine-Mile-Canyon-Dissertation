@@ -196,8 +196,11 @@ plot(raman,pch=19, ylab="Probability of Cultivation",xlab="Growing degree days (
   plot(alldata$probscul~alldata$elevation,pch=19,ylab="Probability of Cultivation (Suitability)", xlab="Elevation (ft)",ylim=c(0.7,0.8),xlim=c(4000,7500))
  
 #projecting the raman.mod across GDD for the state to visualize the suitability raster.  
-#names(gdd)
+#names(gdd)<-"gdd"
 #pc<-raster::predict(object=gdd,model=raman.mod,type="response")
+#not much to do with this, but what if we do mi*gdd
+#mir<-resample(mi,gdd,"bilinear")
+#plot(mir*pc)
 ```
 
 - SPD using bins to account for dates at multiple sites and a 100 year averaging window for smoothing.
