@@ -209,7 +209,11 @@ plot(raman,pch=19, ylab="Probability of Cultivation",xlab="Growing degree days (
 par(pty="s") 
 ##corn dates
 corn<-alldata[alldata$samp_mat=="Zea Mays",]
-hist(corn$uncal_age,breaks=10,main="Histogram of Maize Dates (n=48)", xlab= "Uncalibrated Age (BP)")
+cd<-calibrate(x=corn$uncal_age,
+              errors=corn$uncal_err,
+              calCurves=rep("intcal20",nrow(corn)))
+              
+hist(summary(cd)$MedianBP,main="Histogram of Maize Dates (n=48)", xlab= "Age (BP)")
 
 caldates<-calibrate(x=alldata$uncal_age,errors=alldata$uncal_err,calCurves='intcal20',verbose=F)
 
@@ -611,7 +615,7 @@ for (i in 1:nrow(elevfp)){
 plot(BchronCalibrate(ages=c(sort(stors$uncal_age,decreasing=F)),
                        ageSds=c(stors$uncal_err),
                        positions=seq(0,2300,100),
-                       calCurves=rep('intcal20',nrow(stors))),withPositions=T)
+                       calCurves=rep('intcal20',nrow(stors)),ids=stors$id),withPositions=T)
 ```
 
 ## Analyses 2
@@ -689,7 +693,8 @@ k.check(mod1$gam)
 par(pty="s")
 par(mfrow=c(1,3))
 #gamm
-mod1<-gamm(VS~s(avgprecip)+s(spd)+aors,data=df,correlation=corAR1())
+mod1<-gamm(VS~s(avgprecip)+s(spd)+aors,data=df[c(TRUE, rep(FALSE, 9)),],correlation=corAR1()) 
+#gamm(normstor~s(avgprecip)+s(meanprobscul,k=2)+aors,correlation=corAR1(),data=df[c(TRUE, rep(FALSE, 9)),])
 summary(mod1$gam)
 #hist(resid(mod1$gam),main="NumStor~SPD+AvgPrecip")
 acf(resid(mod1$lme,type="normalized"))
